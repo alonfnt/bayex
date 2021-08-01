@@ -139,3 +139,10 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+# Poetry
+.python-version
+/poetry.lock
+
+# CTags
+/tags*
