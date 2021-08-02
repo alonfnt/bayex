@@ -142,7 +142,6 @@ cython_debug/
 
 # Poetry
 .python-version
-/poetry.lock
 
 # CTags
 /tags*
