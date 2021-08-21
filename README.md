@@ -33,7 +33,7 @@ def f(x, y):
     return -y ** 2 - (x - y) ** 2 + 3 * x / y - 2
 
 constrains = {'x': (-10, 10), 'y': (0, 10)}
-optimizer = bayex.optim(f, constrains=constrains)
+optimizer = bayex.optim(f, constrains=constrains, seed=42)
 
 (x,y), g = optimizer.run(n=10, n_init=4)
 ```
@@ -49,7 +49,7 @@ optimizer = bayex.optim(f, constrains=constrains)
 To cite this repository
 ```
 @software{
-  author = {Albert Alonso},
+  author = {Albert Alonso, Jacob Ungar Felding},
   title = {{Bayex}: Bayesian Global Optimization with JAX tool for {P}ython+{N}um{P}y programs},
   url = {http://github.com/alonfnt/bayex},
   version = {0.0.0},
