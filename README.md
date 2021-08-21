@@ -70,7 +70,7 @@ pytest -n auto tests/
 Remember to amend your current commit with the fixes if any of the checks fails.
 
 ## Planned Features
-- [ ] Optimization on real numbers domain.
+- [ ] Optimization on continuos domains.
 - [ ] Integer parameters support.
 - [ ] Categorical Variables 
 - [ ] Automatic Parallelization on XLA Devices.
