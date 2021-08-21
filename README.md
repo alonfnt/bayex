@@ -58,6 +58,7 @@ git checkout name-of-change
 ```
 
 It is welcome if PR are composed of a single commit, to keep the feature <-> commit balance.
+Please, when writing the commit message, follow the [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/) specitifcation.
 Once you have made your changes and created your commit. It is recommended to run the pre-commit checks.
 ```
 pre-commit run --all
