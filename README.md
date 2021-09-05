@@ -33,9 +33,7 @@ def f(x, y):
     return -y ** 2 - (x - y) ** 2 + 3 * x / y - 2
 
 constrains = {'x': (-10, 10), 'y': (0, 10)}
-optimizer = bayex.optim(f, constrains=constrains, seed=42)
-
-(x,y), g = optimizer.run(n=10, n_init=4)
+x_max, y_max = bayex.optim(f, constrains=constrains, seed=42)
 ```
 
 ## Contributing
