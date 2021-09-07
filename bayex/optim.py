@@ -18,7 +18,7 @@ def expected_improvement(
     x: jnp.ndarray,
     y: jnp.ndarray,
     xi: float = 0.01,
-):
+) -> jnp.ndarray:
     """
     Computes the expected improvement at points x_pred over a
     Gaussian process trained on x and y.
