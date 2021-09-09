@@ -1,11 +1,13 @@
-from typing import Callable, Dict, Tuple
+from typing import Any, Callable, Dict, Tuple
 
 import jax.numpy as jnp
-from jax import jacrev, jit, lax, ops, partial, random, vmap
-from jax._src.prng import PRNGKeyArray
+from jax import jacrev, jit, lax, ops, partial, random, vmap, tree_map
 from jax.scipy.stats import norm
 
-from .gp import predict, train
+from .gp import GParameters, predict, train
+
+
+Array = Any
 
 
 def jacobian(f: Callable) -> Callable:
@@ -13,12 +15,12 @@ def jacobian(f: Callable) -> Callable:
 
 
 def expected_improvement(
-    x_pred: jnp.ndarray,
-    A: jnp.ndarray,
-    x: jnp.ndarray,
-    y: jnp.ndarray,
+    x_pred: Array,
+    params: GParameters,
+    x: Array,
+    y: Array,
     xi: float = 0.01,
-) -> jnp.ndarray:
+) -> Array:
     """
     Computes the expected improvement at points x_pred over a
     Gaussian process trained on x and y.
@@ -26,9 +28,9 @@ def expected_improvement(
     Parameters:
     -----------
     x_pred: The points at which the improvement is computed.
-    A: Trained hyperparameter of the GP.
+    params: Trained hyperparameters of the GP.
     x: Sampled points.
-    y: Sampled targets.
+    y: Target values of the sampled points.
     xi: Parameter to balance exploration-exploitation.
 
     Returns:
@@ -36,14 +38,14 @@ def expected_improvement(
     ei: The expected improvement of x_pred on the trained GP.
     """
     y_max = y.max()
-    mu, std = predict(A, x, y, xtest=x_pred)
-    imp = mu.T - y_max - xi
-    z = imp / std
-    ei = imp * norm.cdf(z) + std * norm.pdf(z)
+    mu, std = predict(params, x, y, xt=x_pred)
+    improvement = mu.T - y_max - xi
+    z = improvement / (std + 1e-3)
+    ei = improvement * norm.cdf(z) + std * norm.pdf(z)
     return ei
 
 
-def replace_nan_values(arr: jnp.ndarray) -> jnp.ndarray:
+def replace_nan_values(arr: Array) -> Array:
     """
     Replaces the NaN values (if any) in arr with 0.
 
@@ -61,23 +63,24 @@ def replace_nan_values(arr: jnp.ndarray) -> jnp.ndarray:
 
 @jit
 def suggest_next(
-    key: PRNGKeyArray,
-    A: jnp.ndarray,
-    x: jnp.ndarray,
-    y: jnp.ndarray,
-    bounds: jnp.ndarray,
+    key: Array,
+    params: GParameters,
+    x: Array,
+    y: Array,
+    bounds: Array,
     n_seed: int = 1000,
     lr: float = 0.1,
     n_epochs: int = 150,
-) -> Tuple[jnp.ndarray, PRNGKeyArray]:
+) -> Tuple[Array, Array]:
     """
     Suggests the new point to sample by optimizing the acquisition function.
 
     Parameters:
     -----------
     key: The pseudo-random generator key used for jax random functions.
-    acq_fun: The acquisition function to maximize.
-    pred_fun: The prediction function with only 1 argument of type Array.
+    params: Hyperparameters of the Gaussian Process Regressor.
+    x: Sampled points.
+    y: Sampled targets.
     bounds: Array of (2, dim) shape with the lower and upper bounds of the
             variables.y_max: The current maximum value of the target values Y.
     n_seed (optional): the number of points to probe and minimize until
@@ -100,7 +103,7 @@ def suggest_next(
         key1, shape=(n_seed, dim), minval=bounds[:, 0], maxval=bounds[:, 1]
     )
 
-    acq = partial(expected_improvement, A=A, x=x, y=y)
+    acq = partial(expected_improvement, params=params, x=x, y=y)
 
     J = jacobian(lambda x: acq(x.reshape(-1, dim)).reshape())
     HS = vmap(lambda x: x + lr * J(x))
@@ -159,15 +162,24 @@ def optim(
     X = jnp.pad(X, ((0, n), (0, 0)), mode="edge")
     Y = jnp.pad(Y, ((0, n)), mode="edge")
 
-    A, p, s = jnp.zeros((1, 1)), 0, 1
+    # Initialize the GP parameters
+    params = GParameters(
+        noise=jnp.zeros((1, 1)) - 5.0,
+        amplitude=jnp.zeros((1, 1)),
+        lengthscale=jnp.zeros((1, 1)),
+    )
+    momentums = tree_map(lambda x: x * 0, params)
+    scales = tree_map(lambda x: x * 0 + 1, params)
 
     # todo(alonfnt): make it JAX friendly
     for i in range(n):
         idx = n_init + i
-        A, p, s = train(A, p=p, scale=s, x=X, y=Y, nsteps=5)
+        params, momentums, scales = train(
+            x=X, y=Y, params=params, momentums=momentums, scales=scales
+        )
         max_params, key = suggest_next(
             key,
-            A,
+            params,
             X,
             Y,
             bounds,
