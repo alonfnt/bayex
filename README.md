@@ -27,31 +27,35 @@ pip install git+git://github.com/alonfnt/bayex.git
 ```
 ## Getting Started
 ```python
->>> import bayex
->>>
->>> def f(x, y):
-...     return -y ** 2 - (x - y) ** 2 + 3 * x / y - 2
-...
->>> constrains = {'x': (-10, 10), 'y': (0, 10)}
->>> max_params = bayex.optim(f, constrains=constrains, seed=42)
+import bayex
+
+def f(x, y):
+    return -y ** 2 - (x - y) ** 2 + 3 * x / y - 2
+
+constrains = {'x': (-10, 10), 'y': (0, 10)}
+optim_params = bayex.optim(f, constrains=constrains, seed=42, n=10)
 ```
 ```
-New max point: [4.510901  7.4756947] and -64.86578535837535
-New max point: [6.9102645 8.70257  ] and -78.56493668775988
-New max point: [5.5670524 1.4345944] and -9.493540418863002
-New max point: [5.6031766 1.3932157] and -9.599546136742621
-New max point: [6.376593  1.5894961] and -15.407673795364316
-New max point: [5.83045   1.8033838] and -11.770272425376406
-New max point: [2.533033  3.3271897] and -11.416937078400633
-New max point: [2.6794457 3.0094016] and -8.494293602532693
-New max point: [2.7432513 3.111738 ] and -9.173950403907483
-New max point: [2.865405  2.8862667] and -7.352654396977775
+New sampled point: [4.5109005 7.4756947] --> -64.86578837717816
+New sampled point: [2.6784592 3.2219148] --> -10.18210295096584
+New sampled point: [5.567053  1.4345944] --> -9.493547303747564
+New sampled point: [2.7907293 3.224175 ] --> -9.98648791591534
+New sampled point: [6.3199263 1.7560012] --> -15.115816866848736
+New sampled point: [5.5886126 1.6345143] --> -10.049148003506835
+New sampled point: [5.712037  1.2171721] --> -9.606692998273038
+New sampled point: [2.6794453 3.0094016] --> -8.494294392550797
+New sampled point: [3.2767563 2.9352677] --> -7.383391309885405
+New sampled point: [3.1001327 2.7761958] --> -6.462146806424036
 ```
+we can then obtain the maximum value found using
 ```python
->>> max_params
+>> optim_params.target
+-6.4621468
 ```
-```
-DeviceArray([2.865405 , 2.8862667], dtype=float32)
+as well as the input parameters that yield it
+```python
+>> optim_params.parameters
+{'x': 3.1001327, 'y': 2.7761958}
 ```
 
 ## Contributing

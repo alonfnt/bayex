@@ -19,8 +19,7 @@ def test_1D_optim():
     bounds = dict(x=(-2, 2))
 
     param = bayex.optim(f, constrains=bounds, seed=SEED, n=10, n_init=5)
-    target_found = f(param)
-    assert jnp.allclose(TARGET, target_found, atol=1e-02)
+    assert jnp.allclose(TARGET, param.target, atol=1e-02)
 
 
 def test_2D_optim():
@@ -35,5 +34,18 @@ def test_2D_optim():
     bounds = dict(x=(0, 5), y=(1, 4))
 
     params = bayex.optim(f, constrains=bounds, seed=SEED, n=15, n_init=10)
-    target_found = f(*params)
-    assert jnp.allclose(TARGET, target_found, rtol=1e-01)
+    assert jnp.allclose(TARGET, params.target, rtol=1e-01)
+
+def test_optim_params_correct_output():
+
+    def f(x, y, z):
+        return -(y ** 2) - (x - y) ** 2 + 3 * z / y - 2
+
+    bounds = dict(x=(0, 5), y=(1, 4), z=(1,20))
+
+    param = bayex.optim(f, constrains=bounds, seed=SEED, n=2, n_init=2)
+    assert type(param.target) == float
+    assert type(param.parameters) == dict
+    assert len(param.parameters) == len(bounds)
+
+

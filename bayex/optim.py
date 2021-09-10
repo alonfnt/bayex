@@ -1,3 +1,4 @@
+from collections import namedtuple
 from typing import Any, Callable, Dict, Tuple
 
 import jax.numpy as jnp
@@ -7,6 +8,9 @@ from jax.scipy.stats import norm
 from .gp import GParameters, predict, train
 
 Array = Any
+OptimizerParameters = namedtuple(
+    "OptimizerParameters", ["target", "parameters"]
+)
 
 
 def jacobian(f: Callable) -> Callable:
@@ -125,7 +129,7 @@ def optim(
     n_init: int = 5,
     n: int = 10,
     xi: float = 0.01,
-) -> Array:
+) -> OptimizerParameters:
     """
     Finds the inputs of 'f' that yield the maximum value between the given
     'constrains', after 'n_init' + 'n' iterations.
@@ -186,5 +190,10 @@ def optim(
         print(f"New max point: {max_params} and {f(*max_params)}")
         X = ops.index_update(X, ops.index[idx, ...], max_params)
         Y = ops.index_update(Y, ops.index[idx], f(*max_params))
-    xmax = X[Y.argmax()]
-    return xmax
+
+    best_target = float(Y.max())
+    best_params = {k: v for (k, v) in zip(constrains.keys(), X[Y.argmax()])}
+    optimizer_params = OptimizerParameters(
+        target=best_target, parameters=best_params
+    )
+    return optimizer_params
