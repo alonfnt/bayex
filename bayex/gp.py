@@ -6,13 +6,11 @@ from typing import Any, Callable, Tuple
 
 import jax.numpy as jnp
 import jax.scipy as scipy
-from jax import grad, jit, tree_map, tree_multimap, vmap, lax
+from jax import grad, jit, lax, tree_map, tree_multimap, vmap
 
 Array = Any  # waiting for JAX official type support
 
-GParameters = namedtuple(
-    "GaussianParameters", ["noise", "amplitude", "lengthscale"]
-)
+GParameters = namedtuple("GParameters", ["noise", "amplitude", "lengthscale"])
 
 
 def cov_map(cov_func: Callable, xs: Array, xs2: Array = None) -> Array:
@@ -34,7 +32,13 @@ def exp_quadratic(x1: Array, x2: Array) -> Array:
     return jnp.exp(-jnp.sum((x1 - x2) ** 2))
 
 
-def gp(params, x, y, xt=None, compute_ml=False):
+def gp(
+    params: GParameters,
+    x: Array,
+    y: Array,
+    xt: Array = None,
+    compute_ml: bool = False,
+) -> Any:
     """
     Gaussian Processor Main function.
     It is used as the based for the trainig of the GP, as well
@@ -51,7 +55,7 @@ def gp(params, x, y, xt=None, compute_ml=False):
 
     Returns:
     --------
-    The mean and standard deviations of the resulting 
+    The mean and standard deviations of the resulting
     Gaussian Distributions.
     """
     n = x.shape[0]

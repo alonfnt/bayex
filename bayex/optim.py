@@ -1,11 +1,10 @@
 from typing import Any, Callable, Dict, Tuple
 
 import jax.numpy as jnp
-from jax import jacrev, jit, lax, ops, partial, random, vmap, tree_map
+from jax import jacrev, jit, lax, ops, partial, random, tree_map, vmap
 from jax.scipy.stats import norm
 
 from .gp import GParameters, predict, train
-
 
 Array = Any
 
@@ -126,7 +125,7 @@ def optim(
     n_init: int = 5,
     n: int = 10,
     xi: float = 0.01,
-):
+) -> Array:
     """
     Finds the inputs of 'f' that yield the maximum value between the given
     'constrains', after 'n_init' + 'n' iterations.

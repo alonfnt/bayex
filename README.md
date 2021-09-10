@@ -6,7 +6,7 @@ Instead of relaying on external libraries, Bayex only relies on JAX and its cust
 
 ## What is Bayesian Optimization?
 
-Bayesian Optimization (BO) methods are useful for optimizing functions that are expensive to evaluate, lack an analytical expression and whose evaluations can be contaminated by noise. These methods rely on a probabilistic model of the objective function, typically a Gaussian process (GP), upon which an acquisition function is built. The acquisition function guides the optimization process and measures the expected utility of performing an evaluation of the objective at a new point. 
+Bayesian Optimization (BO) methods are useful for optimizing functions that are expensive to evaluate, lack an analytical expression and whose evaluations can be contaminated by noise. These methods rely on a probabilistic model of the objective function, typically a Gaussian process (GP), upon which an acquisition function is built. The acquisition function guides the optimization process and measures the expected utility of performing an evaluation of the objective at a new point.
 
 ## Why JAX?
 Using JAX as a backend removes some of the limitations found on Python, as it gives us direct mapping to the XLA compiler.
@@ -28,10 +28,10 @@ pip install git+git://github.com/alonfnt/bayex.git
 ## Getting Started
 ```python
 >>> import bayex
->>> 
+>>>
 >>> def f(x, y):
 ...     return -y ** 2 - (x - y) ** 2 + 3 * x / y - 2
-... 
+...
 >>> constrains = {'x': (-10, 10), 'y': (0, 10)}
 >>> max_params = bayex.optim(f, constrains=constrains, seed=42)
 ```
@@ -66,8 +66,8 @@ to install on the dependencies needed.
 You should start a new branch to write your changes on
 ```
 git checkout -b name-of-change
-``` 
-or 
+```
+or
 ```
 git branch name-of-change
 git checkout name-of-change
@@ -89,7 +89,7 @@ Remember to amend your current commit with the fixes if any of the checks fails.
 ## Planned Features
 - [x] Optimization on continuos domains.
 - [ ] Integer parameters support.
-- [ ] Categorical Variables 
+- [ ] Categorical Variables
 - [ ] Automatic Parallelization on XLA Devices.
 
 ## Citation
