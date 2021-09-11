@@ -122,6 +122,18 @@ def suggest_next(
     return next_X, key2
 
 
+@partial(jit, static_argnums=(1, 2))
+def _extend_array(arr: Array, pad_width: int, axis: int) -> Array:
+    """
+    Extends the array pad_width only on one direction and fills it with
+    the last value of that axis.
+    TODO: consider donate_argnums=0 if the device allows it.
+    """
+    pad_shape = [(0, 0)] * arr.ndim
+    pad_shape[axis] = (0, pad_width)
+    return jnp.pad(arr, pad_shape, mode="edge")
+
+
 def optim(
     f: Callable,
     constrains: Dict,
@@ -161,9 +173,11 @@ def optim(
     )
     Y = vmap(f)(*X.T)
 
-    # Create an empty array with the same values to not perjudicate the gp
-    X = jnp.pad(X, ((0, n), (0, 0)), mode="edge")
-    Y = jnp.pad(Y, ((0, n)), mode="edge")
+    # Expand the array with the same last values to not perjudicate the gp.
+    # the reason to apply it as a function is to avoid having twice the memory usage,
+    # since JAX does not do inplace updates except after being compiled.
+    X = _extend_array(X, n, 0)
+    Y = _extend_array(Y, n, 0)
 
     # Initialize the GP parameters
     params = GParameters(
