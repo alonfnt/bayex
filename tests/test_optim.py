@@ -36,12 +36,12 @@ def test_2D_optim():
     params = bayex.optim(f, constrains=bounds, seed=SEED, n=15, n_init=10)
     assert jnp.allclose(TARGET, params.target, rtol=1e-01)
 
-def test_optim_params_correct_output():
 
+def test_optim_params_correct_output():
     def f(x, y, z):
         return -(y ** 2) - (x - y) ** 2 + 3 * z / y - 2
 
-    bounds = dict(x=(0, 5), y=(1, 4), z=(1,20))
+    bounds = dict(x=(0, 5), y=(1, 4), z=(1, 20))
 
     param = bayex.optim(f, constrains=bounds, seed=SEED, n=2, n_init=2)
     assert type(param.target) == float
@@ -49,3 +49,14 @@ def test_optim_params_correct_output():
     assert len(param.parameters) == len(bounds)
 
 
+def test_cast_to_int():
+    def f(x, y, z):
+        return -(y ** 2) - (x - y) ** 2 + 3 * z / y - 2
+
+    bounds = dict(x=(0, 5), y=(1, 4), z=(1, 20))
+    ctypes = dict(z=int)
+
+    param = bayex.optim(
+        f, constrains=bounds, seed=SEED, n=2, n_init=2, ctypes=ctypes
+    )
+    assert int(param.parameters["z"]) == param.parameters["z"]
