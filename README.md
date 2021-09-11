@@ -1,12 +1,16 @@
 # BAYEX: Bayesian Optimization powered by JAX
-Bayex is a Bayesian global optimization library using Gaussian processes.
-In contrast to existing Bayesian optimization libraries, Bayex is designed for JAX.
+[![tests](https://github.com/alonfnt/bayex/actions/workflows/tests.yml/badge.svg)](https://github.com/alonfnt/bayex/actions/workflows/tests.yml)
+
+Bayex is a high performance Bayesian global optimization library using Gaussian processes.
+In contrast to existing Bayesian optimization libraries, Bayex is designed to use JAX as its backend.
 
 Instead of relaying on external libraries, Bayex only relies on JAX and its custom implementations, without requiring importing massive libraries such as `sklearn`.
 
 ## What is Bayesian Optimization?
 
-Bayesian Optimization (BO) methods are useful for optimizing functions that are expensive to evaluate, lack an analytical expression and whose evaluations can be contaminated by noise. These methods rely on a probabilistic model of the objective function, typically a Gaussian process (GP), upon which an acquisition function is built. The acquisition function guides the optimization process and measures the expected utility of performing an evaluation of the objective at a new point.
+Bayesian Optimization (BO) methods are useful for optimizing functions that are expensive to evaluate, lack an analytical expression and whose evaluations can be contaminated by noise.
+These methods rely on a probabilistic model of the objective function, typically a Gaussian process (GP), upon which an acquisition function is built.
+The acquisition function guides the optimization process and measures the expected utility of performing an evaluation of the objective at a new point.
 
 ## Why JAX?
 Using JAX as a backend removes some of the limitations found on Python, as it gives us direct mapping to the XLA compiler.
@@ -78,8 +82,8 @@ git checkout name-of-change
 ```
 
 It is welcome if PR are composed of a single commit, to keep the feature <-> commit balance.
-Please, when writing the commit message, follow the [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/) specitifcation.
-Once you have made your changes and created your commit. It is recommended to run the pre-commit checks.
+Please, when writing the commit message, try follow the [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/) specitifcation.
+Once you have made your changes and created your commit, it is recommended to run the pre-commit checks.
 ```
 pre-commit run --all
 ```
@@ -109,5 +113,5 @@ To cite this repository
 ```
 ## References
 1. [A Tutorial on Bayesian Optimization](https://arxiv.org/abs/1807.02811)
-2. [BayesianOtpimization Library](https://github.com/fmfn/BayesianOptimization)
+2. [BayesianOptimization Library](https://github.com/fmfn/BayesianOptimization)
 3. [JAX: Autograd and XLA](https://github.com/google/jax)
