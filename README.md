@@ -39,27 +39,35 @@ def f(x, y):
 constrains = {'x': (-10, 10), 'y': (0, 10)}
 optim_params = bayex.optim(f, constrains=constrains, seed=42, n=10)
 ```
-```
-New sampled point: [4.5109005 7.4756947] --> -64.86578837717816
-New sampled point: [2.6784592 3.2219148] --> -10.18210295096584
-New sampled point: [5.567053  1.4345944] --> -9.493547303747564
-New sampled point: [2.7907293 3.224175 ] --> -9.98648791591534
-New sampled point: [6.3199263 1.7560012] --> -15.115816866848736
-New sampled point: [5.5886126 1.6345143] --> -10.049148003506835
-New sampled point: [5.712037  1.2171721] --> -9.606692998273038
-New sampled point: [2.6794453 3.0094016] --> -8.494294392550797
-New sampled point: [3.2767563 2.9352677] --> -7.383391309885405
-New sampled point: [3.1001327 2.7761958] --> -6.462146806424036
+showing the results can be done with
+```python
+>> bayex.show_results(optim_params, min_len=13)
+   #sample      target          x            y
+      1        -9.84385      2.87875      3.22516
+      2        -307.513     -6.13013      8.86493
+      3        -19.2197      6.8417       1.9193
+      4        -43.6495     -3.09738      2.52383
+      5        -58.9488      2.63803      6.54768
+      6        -64.8658      4.5109       7.47569
+      7        -78.5649      6.91026      8.70257
+      8        -9.49354      5.56705      1.43459
+      9        -9.59955      5.60318      1.39322
+     10        -15.4077      6.37659      1.5895
+     11        -11.7703      5.83045      1.80338
+     12        -11.4169      2.53303      3.32719
+     13        -8.49429      2.67945      3.0094
+     14        -9.17395      2.74325      3.11174
+     15        -7.35265      2.86541      2.88627
 ```
 we can then obtain the maximum value found using
 ```python
 >> optim_params.target
--6.4621468
+-7.352654457092285
 ```
 as well as the input parameters that yield it
 ```python
->> optim_params.parameters
-{'x': 3.1001327, 'y': 2.7761958}
+>> optim_params.params
+{'x': 2.865405, 'y': 2.8862667}
 ```
 
 ## Contributing
