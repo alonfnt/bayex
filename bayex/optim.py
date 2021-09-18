@@ -191,7 +191,7 @@ def optim(
     params = GParameters(
         noise=jnp.zeros((1, 1)) - 5.0,
         amplitude=jnp.zeros((1, 1)),
-        lengthscale=jnp.zeros((1, 1)),
+        lengthscale=jnp.zeros((1, dim)),
     )
     momentums = tree_map(lambda x: x * 0, params)
     scales = tree_map(lambda x: x * 0 + 1, params)
