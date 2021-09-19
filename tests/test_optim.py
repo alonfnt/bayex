@@ -49,3 +49,16 @@ def test_optim_params_correct_output():
     assert len(param.params) == len(bounds)
     assert param.params_all.ndim == 2
     assert param.target_all.size == 4
+
+
+def test_cast_to_int():
+    def f(x, y, z):
+        return -(y ** 2) - (x - y) ** 2 + 3 * z / y - 2
+
+    bounds = dict(x=(0, 5), y=(1, 4), z=(1, 20))
+    ctypes = dict(z=int)
+
+    param = bayex.optim(
+        f, constrains=bounds, seed=SEED, n=2, n_init=2, ctypes=ctypes
+    )
+    assert int(param.params["z"]) == param.params["z"]

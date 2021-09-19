@@ -6,11 +6,12 @@ from typing import Any, Callable, Tuple
 
 import jax.numpy as jnp
 import jax.scipy as scipy
-from jax import grad, jit, lax, tree_map, tree_multimap, vmap
+from jax import grad, jit, lax, ops, tree_map, tree_multimap, vmap
 
 Array = Any  # waiting for JAX official type support
 
 GParameters = namedtuple("GParameters", ["noise", "amplitude", "lengthscale"])
+DataTypes = namedtuple("DataTypes", ["integers"])
 
 
 def cov_map(cov_func: Callable, xs: Array, xs2: Array = None) -> Array:
@@ -32,10 +33,22 @@ def exp_quadratic(x1: Array, x2: Array, ls: Array) -> Array:
     return jnp.exp(-jnp.sum((x1 - x2) ** 2 / ls ** 2))
 
 
+@jit
+def round_vars(arr: Array, indexes: list) -> Array:
+    """
+    The input variables corresponding to an integer-valued input variable are
+    rounded to the closest integer value.
+    """
+    for idx in indexes:
+        arr = ops.index_update(arr, ops.index[:, idx], jnp.round(arr[:, idx]))
+    return arr
+
+
 def gp(
     params: GParameters,
     x: Array,
     y: Array,
+    dtypes: DataTypes,
     xt: Array = None,
     compute_ml: bool = False,
 ) -> Any:
@@ -59,13 +72,12 @@ def gp(
     Gaussian Distributions.
     """
     n = x.shape[0]
-
+    x = round_vars(x, dtypes.integers)
     noise, amp, ls = tree_map(softplus, params)
     kernel = partial(exp_quadratic, ls=ls)
 
     ymean = jnp.mean(y)
     y = y - ymean
-    x = x / ls
     train_cov = amp * cov_map(kernel, x) + jnp.eye(n) * (noise + 1e-6)
     chol = scipy.linalg.cholesky(train_cov, lower=True)
     kinvy = scipy.linalg.solve_triangular(
@@ -82,7 +94,7 @@ def gp(
         return -ml
 
     if xt is not None:
-        xt = xt / ls
+        xt = round_vars(xt, dtypes.integers)
 
     cross_cov = amp * cov_map(kernel, x, xt)
     mu = jnp.dot(cross_cov.T, kinvy) + ymean
@@ -107,12 +119,13 @@ def train_step(
     scales: GParameters,
     x: Array,
     y: Array,
+    dtypes: DataTypes,
     lr: float = 0.01,
 ) -> Tuple[GParameters, GParameters, GParameters]:
     """
     Training step of the Gaussian Process Regressor.
     """
-    grads = grad_fun(params, x, y)
+    grads = grad_fun(params, x, y, dtypes=dtypes)
     momentums = tree_multimap(lambda m, g: 0.9 * m + 0.1 * g, momentums, grads)
     scales = tree_multimap(lambda s, g: 0.9 * s + 0.1 * g ** 2, scales, grads)
     params = tree_multimap(
@@ -131,6 +144,7 @@ def train(
     params: GParameters,
     momentums: GParameters,
     scales: GParameters,
+    dtypes: DataTypes,
     lr: float = 0.01,
     nsteps: int = 20,
 ) -> Tuple[GParameters, GParameters, GParameters]:
@@ -153,7 +167,7 @@ def train(
     params, momentums, scales = lax.fori_loop(
         0,
         nsteps,
-        lambda _, v: train_step(v[0], v[1], v[2], x, y, lr),
+        lambda _, v: train_step(v[0], v[1], v[2], x, y, dtypes, lr),
         (params, momentums, scales),
     )
 
