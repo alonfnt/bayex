@@ -45,8 +45,10 @@ def test_optim_params_correct_output():
 
     param = bayex.optim(f, constrains=bounds, seed=SEED, n=2, n_init=2)
     assert type(param.target) == float
-    assert type(param.parameters) == dict
-    assert len(param.parameters) == len(bounds)
+    assert type(param.params) == dict
+    assert len(param.params) == len(bounds)
+    assert param.params_all.ndim == 2
+    assert param.target_all.size == 4
 
 
 def test_cast_to_int():
@@ -59,4 +61,4 @@ def test_cast_to_int():
     param = bayex.optim(
         f, constrains=bounds, seed=SEED, n=2, n_init=2, ctypes=ctypes
     )
-    assert int(param.parameters["z"]) == param.parameters["z"]
+    assert int(param.params["z"]) == param.params["z"]

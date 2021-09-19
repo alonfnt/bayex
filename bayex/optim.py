@@ -1,16 +1,24 @@
-from collections import namedtuple
-from typing import Any, Callable, Tuple, Union
+from typing import Any, Callable, NamedTuple, Tuple, Union
 
 import jax.numpy as jnp
 from jax import jacrev, jit, lax, ops, partial, random, tree_map, vmap
 from jax.scipy.stats import norm
 
-from .gp import GParameters, predict, train, round_vars, DataTypes
+from .gp import DataTypes, GParameters, predict, round_vars, train
 
 Array = Any
-OptimizerParameters = namedtuple(
-    "OptimizerParameters", ["target", "parameters"]
-)
+
+
+class OptimizerParameters(NamedTuple):
+    """
+    Object holding the results of the optimization.
+    """
+
+    target: Union[Array, float]
+    params: Array
+    f: Callable
+    params_all: Array
+    target_all: Array
 
 
 def jacobian(f: Callable) -> Callable:
@@ -23,7 +31,7 @@ def expected_improvement(
     x: Array,
     y: Array,
     xi: float = 0.01,
-    dtypes: Union[dict, None] = None
+    dtypes: Union[dict, None] = None,
 ) -> Array:
     """
     Computes the expected improvement at points x_pred over a
@@ -159,7 +167,7 @@ def optim(
     n_init: Number of initial evaluations before suggesting optimized samples.
     n: Number of sampling iterations.
     xi: Parameter to balance exploration-exploitation.
-    dtypes: The type of non-real variables in the target function.
+    ctypes: The type of non-real variables in the target function.
 
     Returns:
     --------
@@ -170,7 +178,7 @@ def optim(
 
     key = random.PRNGKey(seed)
     dim = len(constrains)
-    _vars = f.__code__.co_varnames
+    _vars = f.__code__.co_varnames[: f.__code__.co_argcount]
     _sorted_constrains = {k: constrains[k] for k in _vars}
 
     if ctypes is not None:
@@ -205,7 +213,7 @@ def optim(
     params = GParameters(
         noise=jnp.zeros((1, 1)) - 5.0,
         amplitude=jnp.zeros((1, 1)),
-        lengthscale=jnp.zeros((1, 1)),
+        lengthscale=jnp.zeros((1, dim)),
     )
     momentums = tree_map(lambda x: x * 0, params)
     scales = tree_map(lambda x: x * 0 + 1, params)
@@ -217,13 +225,12 @@ def optim(
             X, Y, params, momentums, scales, dtypes
         )
         max_params, key = suggest_next(key, params, X, Y, bounds, dtypes)
-        print(f"New max point: {max_params} and {f(*max_params)}")
         X = ops.index_update(X, ops.index[idx, ...], max_params)
         Y = ops.index_update(Y, ops.index[idx], f(*max_params))
 
     best_target = float(Y.max())
     best_params = {k: v for (k, v) in zip(constrains.keys(), X[Y.argmax()])}
     optimizer_params = OptimizerParameters(
-        target=best_target, parameters=best_params
+        target=best_target, params=best_params, f=f, params_all=X, target_all=Y
     )
     return optimizer_params

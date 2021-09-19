@@ -29,8 +29,8 @@ def softplus(x: Array) -> Array:
     return jnp.logaddexp(x, 0.0)
 
 
-def exp_quadratic(x1: Array, x2: Array) -> Array:
-    return jnp.exp(-jnp.sum((x1 - x2) ** 2))
+def exp_quadratic(x1: Array, x2: Array, ls: Array) -> Array:
+    return jnp.exp(-jnp.sum((x1 - x2) ** 2 / ls ** 2))
 
 
 @jit
@@ -74,11 +74,11 @@ def gp(
     n = x.shape[0]
     x = round_vars(x, dtypes.integers)
     noise, amp, ls = tree_map(softplus, params)
+    kernel = partial(exp_quadratic, ls=ls)
 
     ymean = jnp.mean(y)
     y = y - ymean
-    x = x / ls
-    train_cov = amp * cov_map(exp_quadratic, x) + jnp.eye(n) * (noise + 1e-6)
+    train_cov = amp * cov_map(kernel, x) + jnp.eye(n) * (noise + 1e-6)
     chol = scipy.linalg.cholesky(train_cov, lower=True)
     kinvy = scipy.linalg.solve_triangular(
         chol.T, scipy.linalg.solve_triangular(chol, y, lower=True)
@@ -95,12 +95,11 @@ def gp(
 
     if xt is not None:
         xt = round_vars(xt, dtypes.integers)
-        xt = xt / ls
 
-    cross_cov = amp * cov_map(exp_quadratic, x, xt)
+    cross_cov = amp * cov_map(kernel, x, xt)
     mu = jnp.dot(cross_cov.T, kinvy) + ymean
     v = scipy.linalg.solve_triangular(chol, cross_cov, lower=True)
-    var = amp * cov_map(exp_quadratic, xt) - jnp.dot(v.T, v)
+    var = amp * cov_map(kernel, xt) - jnp.dot(v.T, v)
 
     if n > 1:
         var = jnp.diag(var)
