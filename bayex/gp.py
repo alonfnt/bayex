@@ -33,7 +33,6 @@ def exp_quadratic(x1: Array, x2: Array, ls: Array) -> Array:
     return jnp.exp(-jnp.sum((x1 - x2) ** 2 / ls ** 2))
 
 
-@jit
 def round_vars(arr: Array, indexes: list) -> Array:
     """
     The input variables corresponding to an integer-valued input variable are
@@ -113,30 +112,6 @@ predict = jit(partial(gp, compute_ml=False))
 grad_fun = jit(grad(marginal_likelihood))
 
 
-def train_step(
-    params: GParameters,
-    momentums: GParameters,
-    scales: GParameters,
-    x: Array,
-    y: Array,
-    dtypes: DataTypes,
-    lr: float = 0.01,
-) -> Tuple[GParameters, GParameters, GParameters]:
-    """
-    Training step of the Gaussian Process Regressor.
-    """
-    grads = grad_fun(params, x, y, dtypes=dtypes)
-    momentums = tree_multimap(lambda m, g: 0.9 * m + 0.1 * g, momentums, grads)
-    scales = tree_multimap(lambda s, g: 0.9 * s + 0.1 * g ** 2, scales, grads)
-    params = tree_multimap(
-        lambda p, m, s: p - lr * m / jnp.sqrt(s + 1e-5),
-        params,
-        momentums,
-        scales,
-    )
-    return params, momentums, scales
-
-
 @jit
 def train(
     x: Array,
@@ -164,10 +139,28 @@ def train(
     Tuple with the trained `params`, `momentums` and `scales`.
     """
 
+    def train_step(
+        params: GParameters, momentums: GParameters, scales: GParameters
+    ) -> Tuple:
+        grads = grad_fun(params, x, y, dtypes=dtypes)
+        momentums = tree_multimap(
+            lambda m, g: 0.9 * m + 0.1 * g, momentums, grads
+        )
+        scales = tree_multimap(
+            lambda s, g: 0.9 * s + 0.1 * g ** 2, scales, grads
+        )
+        params = tree_multimap(
+            lambda p, m, s: p - lr * m / jnp.sqrt(s + 1e-5),
+            params,
+            momentums,
+            scales,
+        )
+        return params, momentums, scales
+
     params, momentums, scales = lax.fori_loop(
         0,
         nsteps,
-        lambda _, v: train_step(v[0], v[1], v[2], x, y, dtypes, lr),
+        lambda _, v: train_step(*v),
         (params, momentums, scales),
     )
 
