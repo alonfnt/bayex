@@ -1,12 +1,11 @@
-from typing import Any, Callable, NamedTuple, Tuple, Union
+from typing import Callable, NamedTuple, Tuple, Union
 
 import jax.numpy as jnp
 from jax import jacrev, jit, lax, ops, partial, random, tree_map, vmap
 from jax.scipy.stats import norm
 
 from .gp import DataTypes, GParameters, predict, round_vars, train
-
-Array = Any
+from .types import Array
 
 
 class OptimizerParameters(NamedTuple):
