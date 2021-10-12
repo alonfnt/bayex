@@ -8,7 +8,7 @@ import jax.numpy as jnp
 import jax.scipy as scipy
 from jax import grad, jit, lax, ops, tree_map, tree_multimap, vmap
 
-Array = Any  # waiting for JAX official type support
+from .types import Array
 
 GParameters = namedtuple("GParameters", ["noise", "amplitude", "lengthscale"])
 DataTypes = namedtuple("DataTypes", ["integers"])
