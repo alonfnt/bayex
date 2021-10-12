@@ -29,7 +29,10 @@ or from GitHub directly
 ```
 pip install git+git://github.com/alonfnt/bayex.git
 ```
-## Getting Started
+For more advance instructions please refer to the [installation guide](INSTALLATION.md).
+
+## Usage
+Using Bayex is very straightforward:
 ```python
 import bayex
 
@@ -72,53 +75,9 @@ as well as the input parameters that yield it
 
 ## Contributing
 Everyone can contribute to Bayex and we welcome pull requests as well as raised issues.
-In order to contribute code, one must begin by forking the repository. This creates a copy of the repository on your account.
+Please refer to this [contribution guide](CONTRIBUTING.md) on how to do it.
 
-Bayex uses poetry as a packaging and dependency manager. Hence, once you have cloned your repo on your own machine, you can use
-```
-poetry install
-```
-to install on the dependencies needed.
-You should start a new branch to write your changes on
-```
-git checkout -b name-of-change
-```
-or
-```
-git branch name-of-change
-git checkout name-of-change
-```
 
-It is welcome if PR are composed of a single commit, to keep the feature <-> commit balance.
-Please, when writing the commit message, try follow the [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/) specitifcation.
-Once you have made your changes and created your commit, it is recommended to run the pre-commit checks.
-```
-pre-commit run --all
-```
-as well as the tests to make sure everything works
-```
-pytest tests/
-```
-
-Remember to amend your current commit with the fixes if any of the checks fails.
-
-## Planned Features
-- [x] Optimization on continuos domains.
-- [ ] Integer parameters support.
-- [ ] Categorical Variables
-- [ ] Automatic Parallelization on XLA Devices.
-
-## Citation
-To cite this repository
-```
-@software{
-  author = {Albert Alonso}
-  title = {{Bayex}: Bayesian Global Optimization with JAX tool for {P}ython programs},
-  url = {http://github.com/alonfnt/bayex},
-  version = {0.1.0.alpha0},
-  year = {2021},
-}
-```
 ## References
 1. [A Tutorial on Bayesian Optimization](https://arxiv.org/abs/1807.02811)
 2. [BayesianOptimization Library](https://github.com/fmfn/BayesianOptimization)
