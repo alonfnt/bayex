@@ -8,7 +8,7 @@ import jax.numpy as jnp
 import jax.scipy as scipy
 from jax import grad, jit, lax, ops, tree_map, tree_multimap, vmap
 
-from .types import Array
+from bayex.types import Array
 
 GParameters = namedtuple("GParameters", ["noise", "amplitude", "lengthscale"])
 DataTypes = namedtuple("DataTypes", ["integers"])

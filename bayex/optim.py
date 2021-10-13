@@ -4,8 +4,8 @@ import jax.numpy as jnp
 from jax import jacrev, jit, lax, ops, partial, random, tree_map, vmap
 from jax.scipy.stats import norm
 
-from .gp import DataTypes, GParameters, predict, round_vars, train
-from .types import Array
+from bayex.gp import DataTypes, GParameters, predict, round_vars, train
+from bayex.types import Array
 
 
 class OptimizerParameters(NamedTuple):

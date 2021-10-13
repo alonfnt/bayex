@@ -2,7 +2,7 @@ from enum import Enum
 from typing import Any, Callable
 
 import jax.numpy as jnp
-from jax._src.tree_util import tree_map
+from jax.tree_util import tree_map
 
 from bayex.optim import OptimizerParameters
 

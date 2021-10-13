@@ -1,5 +1,5 @@
-from .optim import optim
-from .screen import Log, show_results
+from bayex.optim import optim
+from bayex.screen import Log, show_results
 
 __all__ = [
     "optim",
