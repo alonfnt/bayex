@@ -5,8 +5,7 @@ import jax.numpy as jnp
 from jax.tree_util import tree_map
 
 from bayex.optim import OptimizerParameters
-
-Array = Any  # todo: fix jax type hinting
+from bayex.types import Array
 
 
 class Log(Enum):
