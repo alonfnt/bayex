@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "bayex"
-version = "0.1.0-alpha.0"
+version = "0.1.0"
 description = "Bayesian Optimization with Gaussian Processes powered by JAX"
 authors = ["Albert Alonso <alonfnt@pm.me>"]
 repository = "https://github.com/alonfnt/bayex"
