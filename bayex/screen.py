@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Any, Callable
+from typing import Callable
 
 import jax.numpy as jnp
 from jax.tree_util import tree_map
