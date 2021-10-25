@@ -145,3 +145,7 @@ cython_debug/
 
 # CTags
 /tags*
+
+# Vim swap files
+*.swp
+*.swo
