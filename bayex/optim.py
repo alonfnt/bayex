@@ -2,7 +2,7 @@ from functools import partial
 from typing import Callable, NamedTuple, Tuple, Union
 
 import jax.numpy as jnp
-from jax import jacrev, jit, lax, ops, random, tree_map, vmap
+from jax import jacrev, jit, lax, random, tree_map, vmap
 
 from bayex.acq import ACQ, select_acq
 from bayex.gp import DataTypes, GParameters, round_vars, train
@@ -196,8 +196,8 @@ def optim(
             X, Y, params, momentums, scales, dtypes
         )
         max_params, key = suggest_next(key, params, X, Y, bounds, dtypes, _acq)
-        X = ops.index_update(X, ops.index[idx, ...], max_params)
-        Y = ops.index_update(Y, ops.index[idx], f(*max_params))
+        X = X.at[idx, ...].set(max_params)  # type: ignore
+        Y = Y.at[idx].set(f(*max_params))  # type: ignore
 
     best_target = float(Y.max())
     best_params = {k: v for (k, v) in zip(constrains.keys(), X[Y.argmax()])}
