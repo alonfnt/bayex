@@ -1,11 +1,11 @@
+from functools import partial
 from typing import Callable, NamedTuple, Tuple, Union
 
 import jax.numpy as jnp
 from jax import jacrev, jit, lax, ops, random, tree_map, vmap
-from jax.scipy.stats import norm
-from functools import partial
 
-from bayex.gp import DataTypes, GParameters, predict, round_vars, train
+from bayex.acq import ACQ, select_acq
+from bayex.gp import DataTypes, GParameters, round_vars, train
 from bayex.types import Array
 
 
@@ -25,38 +25,6 @@ def jacobian(f: Callable) -> Callable:
     return jit(jacrev(f))
 
 
-def expected_improvement(
-    x_pred: Array,
-    params: GParameters,
-    x: Array,
-    y: Array,
-    xi: float = 0.01,
-    dtypes: Union[dict, None] = None,
-) -> Array:
-    """
-    Computes the expected improvement at points x_pred over a
-    Gaussian process trained on x and y.
-
-    Parameters:
-    -----------
-    x_pred: The points at which the improvement is computed.
-    params: Trained hyperparameters of the GP.
-    x: Sampled points.
-    y: Target values of the sampled points.
-    xi: Parameter to balance exploration-exploitation.
-
-    Returns:
-    --------
-    ei: The expected improvement of x_pred on the trained GP.
-    """
-    y_max = y.max()
-    mu, std = predict(params, x, y, dtypes, xt=x_pred)
-    improvement = mu.T - y_max - xi
-    z = improvement / (std + 1e-3)
-    ei = improvement * norm.cdf(z) + std * norm.pdf(z)
-    return ei
-
-
 def replace_nan_values(arr: Array) -> Array:
     """
     Replaces the NaN values (if any) in arr with 0.
@@ -73,7 +41,7 @@ def replace_nan_values(arr: Array) -> Array:
     return jnp.where(jnp.isnan(arr), 0, arr)
 
 
-@jit
+@partial(jit, static_argnums=(6,))
 def suggest_next(
     key: Array,
     params: GParameters,
@@ -81,6 +49,7 @@ def suggest_next(
     y: Array,
     bounds: Array,
     dtypes: DataTypes,
+    acq: Callable,
     n_seed: int = 1000,
     lr: float = 0.1,
     n_epochs: int = 150,
@@ -117,9 +86,9 @@ def suggest_next(
         key1, shape=(n_seed, dim), minval=bounds[:, 0], maxval=bounds[:, 1]
     )
 
-    acq = partial(expected_improvement, params=params, x=x, y=y, dtypes=dtypes)
+    _acq = partial(acq, params=params, x=x, y=y, dtypes=dtypes)
 
-    J = jacobian(lambda x: acq(x.reshape(-1, dim)).reshape())
+    J = jacobian(lambda x: _acq(x.reshape(-1, dim)).reshape())
     HS = vmap(lambda x: x + lr * J(x))
 
     domain = lax.fori_loop(0, n_epochs, lambda _, d: HS(d), domain)
@@ -129,7 +98,7 @@ def suggest_next(
     domain = replace_nan_values(domain)
     domain = round_vars(domain, dtypes.integers)
 
-    ys = acq(domain)
+    ys = _acq(domain)
     next_X = domain[ys.argmax()]
     return next_X, key2
 
@@ -152,8 +121,9 @@ def optim(
     seed: int = 42,
     n_init: int = 5,
     n: int = 10,
-    xi: float = 0.01,
     ctypes: dict = None,
+    acq: ACQ = ACQ.EI,
+    **acq_params: dict,
 ) -> OptimizerParameters:
     """
     Finds the inputs of 'f' that yield the maximum value between the given
@@ -166,7 +136,6 @@ def optim(
     seed: Pseudo-random number generator seed for reproducibility
     n_init: Number of initial evaluations before suggesting optimized samples.
     n: Number of sampling iterations.
-    xi: Parameter to balance exploration-exploitation.
     ctypes: The type of non-real variables in the target function.
 
     Returns:
@@ -190,6 +159,8 @@ def optim(
         )
     else:
         dtypes = DataTypes(integers=[])
+
+    _acq = select_acq(acq, acq_params)
 
     bounds = jnp.asarray(list(_sorted_constrains.values()))
 
@@ -224,7 +195,7 @@ def optim(
         params, momentums, scales = train(
             X, Y, params, momentums, scales, dtypes
         )
-        max_params, key = suggest_next(key, params, X, Y, bounds, dtypes)
+        max_params, key = suggest_next(key, params, X, Y, bounds, dtypes, _acq)
         X = ops.index_update(X, ops.index[idx, ...], max_params)
         Y = ops.index_update(Y, ops.index[idx], f(*max_params))
 
