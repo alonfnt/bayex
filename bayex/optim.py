@@ -189,9 +189,7 @@ def optim(
     momentums = tree_map(lambda x: x * 0, params)
     scales = tree_map(lambda x: x * 0 + 1, params)
 
-    # todo(alonfnt): make it JAX friendly
-    for i in range(n):
-        idx = n_init + i
+    for idx in range(n_init, n + n_init):
         params, momentums, scales = train(
             X, Y, params, momentums, scales, dtypes
         )
