@@ -1,12 +1,10 @@
-# Based on the Gaussian regression example in
-# https://github.com/google/jax/blob/main/examples/gaussian_process_regression.py
 from collections import namedtuple
 from functools import partial
-from typing import Any, Callable, Tuple
+from typing import Any, Callable, Tuple, Union
 
 import jax.numpy as jnp
-import jax.scipy as scipy
 from jax import grad, jit, lax, ops, tree_map, tree_multimap, vmap
+from jax.scipy.linalg import cholesky, solve_triangular
 
 from bayex.types import Array
 
@@ -14,15 +12,14 @@ GParameters = namedtuple("GParameters", ["noise", "amplitude", "lengthscale"])
 DataTypes = namedtuple("DataTypes", ["integers"])
 
 
-def cov_map(cov_func: Callable, xs: Array, xs2: Array = None) -> Array:
+def cov(k: Callable, x1: Array, x2: Array = None) -> Array:
     """
-    Computes the covariance matrix of the given function with the
-    given points.
+    Computes the covariance matrix of the given kernel with the given points.
     """
-    if xs2 is None:
-        return vmap(lambda x: vmap(lambda y: cov_func(x, y))(xs))(xs)
+    if x2 is None:
+        return vmap(lambda x: vmap(lambda y: k(x, y))(x1))(x1)
     else:
-        return vmap(lambda x: vmap(lambda y: cov_func(x, y))(xs))(xs2).T
+        return vmap(lambda x: vmap(lambda y: k(x, y))(x1))(x2).T
 
 
 def softplus(x: Array) -> Array:
@@ -33,83 +30,84 @@ def exp_quadratic(x1: Array, x2: Array, ls: Array) -> Array:
     return jnp.exp(-jnp.sum((x1 - x2) ** 2 / ls ** 2))
 
 
-def round_vars(arr: Array, indexes: list) -> Array:
+def round_integers(arr: Array, dtypes: Union[DataTypes, None]) -> Array:
     """
     The input variables corresponding to an integer-valued input variable are
     rounded to the closest integer value.
     """
+    if dtypes is None:
+        return arr
+
+    indexes = dtypes.integers
     for idx in indexes:
         arr = ops.index_update(arr, ops.index[:, idx], jnp.round(arr[:, idx]))
     return arr
 
 
-def gp(
+def gaussian_process(
     params: GParameters,
     x: Array,
     y: Array,
-    dtypes: DataTypes,
+    dtypes: DataTypes = None,
     xt: Array = None,
     compute_ml: bool = False,
 ) -> Any:
     """
-    Gaussian Processor Main function.
-    It is used as the based for the trainig of the GP, as well
-    as the computing of marginal likelihood and prediction.
-
-    Parameters:
-    -----------
-    params: Hyperparameters of the GP.
-    x: Sampled points.
-    y: Target values of the sampled points.
-    xt: Points on which to predict.
-    compute_ml: Flag indicating whether return the marginal
-                distribution or continue with the predictions.
-
-    Returns:
-    --------
-    The mean and standard deviations of the resulting
-    Gaussian Distributions.
+    Base function that deals with the Gaussian Processes.
     """
+    # Number of points in the prior distribution
     n = x.shape[0]
-    x = round_vars(x, dtypes.integers)
+
+    # Rounding integer values before computing the covariance matrices.
+    x = round_integers(x, dtypes)
+
     noise, amp, ls = tree_map(softplus, params)
     kernel = partial(exp_quadratic, ls=ls)
 
+    # Normalization of measurements
     ymean = jnp.mean(y)
     y = y - ymean
-    train_cov = amp * cov_map(kernel, x) + jnp.eye(n) * (noise + 1e-6)
-    chol = scipy.linalg.cholesky(train_cov, lower=True)
-    kinvy = scipy.linalg.solve_triangular(
-        chol.T, scipy.linalg.solve_triangular(chol, y, lower=True)
-    )
+
+    # Covariance matrix K[X,X] with noise measurements
+    K = amp * cov(kernel, x) + (jnp.eye(n) * (noise + 1e-6))
+
+    # In order to compute the inverse of K, i.e K^-1, we make use of Cholesky
+    # factorization K = LxL^T to improve performance on the solving.
+    L = cholesky(K, lower=True)
+    K_inv_y = solve_triangular(L.T, solve_triangular(L, y, lower=True))
+
     if compute_ml:
-        log2pi = jnp.log(2.0 * jnp.pi)
-        ml = jnp.sum(
-            -0.5 * jnp.dot(y.T, kinvy)
-            - jnp.sum(jnp.log(jnp.diag(chol)))
-            - (n / 2.0) * log2pi
-        )
-        ml -= jnp.sum(-0.5 * jnp.log(2 * 3.1415) - jnp.log(amp) ** 2)
+        # Compute the marginal likelihood using its closed form:
+        # log(P) = - 0.5 yK^-1y - 0.5 |K-sigmaI| - n/2 log(2pi)
+        fitting = y.T.dot(K_inv_y)
+
+        # Compute the determinant using the Lower Diagonal Factorization
+        # since it makes it only the diagonal multiplication (sum of logs)
+        penalty = 2.0 * jnp.sum(jnp.log(jnp.diag(L)))
+
+        ml = -0.5 * jnp.sum(fitting + penalty + n * jnp.log(2.0 * jnp.pi))
+
+        # Add the amplitude hyperparameter to the marginal likelihood
+        ml += 0.5 * jnp.log(2.0 * jnp.pi) + jnp.log(amp.reshape()) ** 2
         return -ml
 
     if xt is not None:
-        xt = round_vars(xt, dtypes.integers)
+        xt = round_integers(xt, dtypes)
 
-    cross_cov = amp * cov_map(kernel, x, xt)
-    mu = jnp.dot(cross_cov.T, kinvy) + ymean
-    v = scipy.linalg.solve_triangular(chol, cross_cov, lower=True)
-    var = amp * cov_map(kernel, xt) - jnp.dot(v.T, v)
+    # Compute the covariance with the new point xt
+    K_cross = amp * cov(kernel, x, xt)
 
-    if n > 1:
-        var = jnp.diag(var)
+    # Return the mean and standard devition of the Gaussian Proceses
+    mean = jnp.dot(K_cross.T, K_inv_y) + ymean
+    v = solve_triangular(L, K_cross, lower=True)
+    var = amp * cov(kernel, xt) - jnp.dot(v.T, v)
+    std = jnp.sqrt(var) if n == 1 else jnp.diag(var)
+    return mean, std
 
-    std = jnp.sqrt(var)
-    return mu, std
 
-
-marginal_likelihood = partial(gp, compute_ml=True)
-predict = jit(partial(gp, compute_ml=False))
+marginal_likelihood = partial(gaussian_process, compute_ml=True)
 grad_fun = jit(grad(marginal_likelihood))
+predict = jit(partial(gaussian_process, compute_ml=False))
 
 
 @jit
