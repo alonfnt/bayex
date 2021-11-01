@@ -5,7 +5,7 @@ import jax.numpy as jnp
 from jax import jacrev, jit, lax, random, tree_map, vmap
 
 from bayex.acq import ACQ, select_acq
-from bayex.gp import DataTypes, GParameters, round_vars, train
+from bayex.gp import DataTypes, GParameters, round_integers, train
 from bayex.types import Array
 
 
@@ -96,7 +96,7 @@ def suggest_next(
         domain.reshape(-1, dim), a_min=bounds[:, 0], a_max=bounds[:, 1]
     )
     domain = replace_nan_values(domain)
-    domain = round_vars(domain, dtypes.integers)
+    domain = round_integers(domain, dtypes)
 
     ys = _acq(domain)
     next_X = domain[ys.argmax()]
@@ -170,7 +170,7 @@ def optim(
         minval=bounds[:, 0],
         maxval=bounds[:, 1],
     )
-    X = round_vars(X, dtypes.integers)
+    X = round_integers(X, dtypes)
     Y = vmap(f)(*X.T)
 
     # Expand the array with the same last values to not perjudicate the gp.
