@@ -1,26 +1,25 @@
 # BAYEX: Bayesian Optimization powered by JAX
 [![tests](https://github.com/alonfnt/bayex/actions/workflows/tests.yml/badge.svg)](https://github.com/alonfnt/bayex/actions/workflows/tests.yml)
+[**Features**](#features)
+| [**Installation**](#installation)
+| [**Usage**](#usage)
+| [**Contributing**](#contributing)
 
 Bayex is a high performance Bayesian global optimization library using Gaussian processes.
-In contrast to existing Bayesian optimization libraries, Bayex is designed to use JAX as its backend.
-
-Instead of relaying on external libraries, Bayex only relies on JAX and its custom implementations, without requiring importing massive libraries such as `sklearn`.
-
-## What is Bayesian Optimization?
+In contrast to existing Bayesian optimization libraries, Bayex is completly written in JAX.
 
 Bayesian Optimization (BO) methods are useful for optimizing functions that are expensive to evaluate, lack an analytical expression and whose evaluations can be contaminated by noise.
-These methods rely on a probabilistic model of the objective function, typically a Gaussian process (GP), upon which an acquisition function is built.
-The acquisition function guides the optimization process and measures the expected utility of performing an evaluation of the objective at a new point.
+These methods rely typically on a Gaussian process (GP), upon which an acquisition function guides the optimization process and measures the expected utility of performing an evaluation of the objective at a new suggested point.
 
-## Why JAX?
-Using JAX as a backend removes some of the limitations found on Python, as it gives us direct mapping to the XLA compiler.
+## Features<a id="features"></a>
+- **High Performance**: by making use of vectorization and JIT compilation provided by JAX.
+- **Hardware Accelerated**: Bayex can be run on CPU, but also on GPU and TPU wihtout issues.
+- **Discrete variables**: Support for discrete variables.
+- **Multiple Acquisition Functions**: Expected Improvement, Probability of Improvement, Upper/Lower Confidence Bound, etc.
+- **Multiple Kernel choices**: Squared Exponential, Mattern (0.5, 1.0, 1.5), Periodic, etc.
+<!-- - **Parallel**: Parallelizable to multiple XLA devices (TO DO) -->
 
-XLA compiles and runs the JAX code into several architectures such as CPU, GPU and TPU without hassle. But the device agnostic approach is not the reason to back XLA for future scientific programs. XLA provides with optimizations under the hood such as Just-In-Time compilation and automatic parallelization that make Python (with a NumPy-like approach) a suitable candidate on some High Performance Computing scenarios.
-
-Additionally, JAX provides Python code with automatic differentiation, which helps identify the conditions that maximize the acquisition function.
-
-
-## Installation
+## Installation<a id="installation"></a>
 Bayex can be installed using [PyPI](https://pypi.org/project/bayex/) via `pip`:
 ```
 pip install bayex
@@ -31,7 +30,7 @@ pip install git+git://github.com/alonfnt/bayex.git
 ```
 For more advance instructions please refer to the [installation guide](INSTALLATION.md).
 
-## Usage
+## Usage<a id="usage"></a>
 Using Bayex is very straightforward:
 ```python
 import bayex
@@ -44,7 +43,7 @@ optim_params = bayex.optim(f, constrains=constrains, seed=42, n=10)
 ```
 showing the results can be done with
 ```python
->> bayex.show_results(optim_params, min_len=13)
+>> bayex.show_results(optim_params)
    #sample      target          x            y
       1        -9.84385      2.87875      3.22516
       2        -307.513     -6.13013      8.86493
@@ -62,7 +61,7 @@ showing the results can be done with
      14        -9.17395      2.74325      3.11174
      15        -7.35265      2.86541      2.88627
 ```
-we can then obtain the maximum value found using
+we can also obtain the maximum value found using
 ```python
 >> optim_params.target
 -7.352654457092285
@@ -73,7 +72,7 @@ as well as the input parameters that yield it
 {'x': 2.865405, 'y': 2.8862667}
 ```
 
-## Contributing
+## Contributing<a id="contributing"></a>
 Everyone can contribute to Bayex and we welcome pull requests as well as raised issues.
 Please refer to this [contribution guide](CONTRIBUTING.md) on how to do it.
 
