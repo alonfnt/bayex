@@ -1,20 +1,19 @@
 from collections import namedtuple
 from functools import partial
-from typing import Any, Callable, Tuple, Union
+from typing import Any, Callable, Optional
 
-from jax import grad, jit, lax, ops, tree_util, vmap
-from jax.tree_util import tree_map
 import jax.numpy as jnp
+from jax import grad, lax, vmap
 from jax.scipy.linalg import cholesky, solve_triangular
+from jax.tree_util import tree_map
 
-from bayex.types import Array
+from bayex.observables import DataTypes, round_integers
 
 GPParams = namedtuple("GPParams", ["noise", "amplitude", "lengthscale"])
 GPState = namedtuple("GPState", ["params", "momentums", "scales"])
-DataTypes = namedtuple("DataTypes", ["integers"])
 
 
-def cov(k: Callable, x1: Array, x2: Array = None) -> Array:
+def cov(k: Callable, x1: jnp.ndarray, x2: Optional[jnp.ndarray] = None) -> jnp.ndarray:
     """
     Computes the covariance matrix of the given kernel with the given points.
     """
@@ -24,48 +23,29 @@ def cov(k: Callable, x1: Array, x2: Array = None) -> Array:
         return vmap(lambda x: vmap(lambda y: k(x, y))(x1))(x2).T
 
 
-def softplus(x: Array) -> Array:
+def softplus(x):
     return jnp.logaddexp(x, 0.0)
 
 
-def exp_quadratic(x1: Array, x2: Array, ls: Array) -> Array:
+def exp_quadratic(x1: jnp.ndarray, x2: jnp.ndarray, ls: jnp.ndarray) -> jnp.ndarray:
     return jnp.exp(-jnp.sum((x1 - x2) ** 2 / ls**2))
-
-
-def round_integers(arr: Array, dtypes: Union[DataTypes, None]) -> Array:
-    """
-    The input variables corresponding to an integer-valued input variable are
-    rounded to the closest integer value.
-    """
-    if dtypes is None:
-        return arr
-
-    indexes = dtypes.integers
-    if indexes:
-        integers = jnp.zeros(shape=arr.shape[1])
-        integers = integers.at[tuple(indexes)].set(1)
-        arr = jnp.where(integers[None], jnp.round(arr), arr)
-    return arr
 
 
 def gaussian_process(
     params: GPParams,
-    x: Array,
-    y: Array,
-    dtypes: Union[DataTypes, None] = None,
-    xt: Array = None,
+    x: jnp.ndarray,
+    y: jnp.ndarray,
+    dtypes: Optional[DataTypes] = None,
+    xt: Optional[jnp.ndarray] = None,
     compute_ml: bool = False,
 ) -> Any:
-    """
-    Base function that deals with the Gaussian Processes.
-    """
     # Number of points in the prior distribution
     n = x.shape[0]
 
     # Rounding integer values before computing the covariance matrices.
     x = round_integers(x, dtypes)
 
-    noise, amp, ls = tree_util.tree_map(softplus, params)
+    noise, amp, ls = tree_map(softplus, params)
     kernel = partial(exp_quadratic, ls=ls)
 
     # Normalization of measurements
@@ -83,7 +63,7 @@ def gaussian_process(
     if compute_ml:
         # Compute the marginal likelihood using its closed form:
         # log(P) = - 0.5 yK^-1y - 0.5 |K-sigmaI| - n/2 log(2pi)
-        fitting = y.T.dot(K_inv_y)
+        fitting = jnp.transpose(y).dot(K_inv_y)
 
         # Compute the determinant using the Lower Diagonal Factorization
         # since it makes it only the diagonal multiplication (sum of logs)
@@ -95,31 +75,33 @@ def gaussian_process(
         ml += 0.5 * jnp.log(2.0 * jnp.pi) + jnp.log(amp.reshape()) ** 2
         return -ml
 
-    if xt is not None:
-        xt = round_integers(xt, dtypes)
+    if xt is None:
+        raise AttributeError("xt can't be None during prediction.")
+
+    xt = round_integers(xt, dtypes)
 
     # Compute the covariance with the new point xt
     K_cross = amp * cov(kernel, x, xt)
 
     # Return the mean and standard devition of the Gaussian Proceses
-    mean = jnp.dot(K_cross.T, K_inv_y) + ymean
+    mean = jnp.dot(jnp.transpose(K_cross), K_inv_y) + ymean
     v = solve_triangular(L, K_cross, lower=True)
     var = amp * cov(kernel, xt) - jnp.dot(v.T, v)
-    std = jnp.sqrt(var) if n == 1 else jnp.diag(var)
+    std = jnp.diag(var)
     return mean, std
 
 
 marginal_likelihood = partial(gaussian_process, compute_ml=True)
-grad_fun = jit(grad(marginal_likelihood))
-predict = jit(partial(gaussian_process, compute_ml=False))
+grad_fun = grad(marginal_likelihood)
+predict = partial(gaussian_process, compute_ml=False)
 
 
 def posterior_fit(
-    x: Array,
-    y: Array,
+    x: jnp.ndarray,
+    y: jnp.ndarray,
     state: GPState,
     dtypes: DataTypes,
-    lr: float = 0.001,
+    lr: float = 1e-4,
     nsteps: int = 1500,
 ) -> GPState:
     """

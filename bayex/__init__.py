@@ -1,11 +1,10 @@
-from bayex.acq import ACQ
-from bayex.optim import optim, optimizer, add_observable
+from bayex.observables import add_observable
+from bayex.optim import optimizer
 from bayex.screen import Log, show_results
 
-__version__ = "0.1.0"
+__version__ = "0.0.1"
 
 __all__ = [
-    "optim",
     "optimizer",
     "add_observable",
     "show_results",
