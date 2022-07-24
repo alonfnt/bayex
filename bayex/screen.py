@@ -13,9 +13,7 @@ class Log(Enum):
     BEST = 2
 
 
-def show_sampling(
-    x: Array, y: Array, f: Callable, verbose: Log, min_width: int
-) -> None:
+def show_sampling(x: Array, y: Array, f: Callable, verbose: Log, min_width: int) -> None:
     """
     Prints the sampled points during the optimization as well as the target
     value.
@@ -52,9 +50,7 @@ def show_sampling(
         y_prev = yi
 
 
-def show_results(
-    res: OptimizerParameters, verbose: Log = Log.ALL, min_width: int = 10
-) -> None:
+def show_results(res: OptimizerParameters, verbose: Log = Log.ALL, min_width: int = 10) -> None:
     """
     Prints the sampled points during the optimization as well as the target
     value.

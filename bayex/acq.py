@@ -4,7 +4,7 @@ from typing import Callable, Union
 
 from jax.scipy.stats import norm
 
-from bayex.gp import GParameters, predict
+from bayex.gp import GPParams, predict
 from bayex.types import Array
 
 
@@ -40,7 +40,7 @@ def select_acq(acq: Union[ACQ, str], acq_params: dict) -> Callable:
 
 def expected_improvement(
     x_pred: Array,
-    params: GParameters,
+    params: GPParams,
     x: Array,
     y: Array,
     dtypes: Union[dict, None],
@@ -56,7 +56,7 @@ def expected_improvement(
 
 def probability_improvement(
     x_pred: Array,
-    params: GParameters,
+    params: GPParams,
     x: Array,
     y: Array,
     dtypes: Union[dict, None],
@@ -70,7 +70,7 @@ def probability_improvement(
 
 def upper_confidence_bounds(
     x_pred: Array,
-    params: GParameters,
+    params: GPParams,
     x: Array,
     y: Array,
     dtypes: Union[dict, None],
@@ -82,7 +82,7 @@ def upper_confidence_bounds(
 
 def lower_confidence_bounds(
     x_pred: Array,
-    params: GParameters,
+    params: GPParams,
     x: Array,
     y: Array,
     dtypes: Union[dict, None],

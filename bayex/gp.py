@@ -2,13 +2,15 @@ from collections import namedtuple
 from functools import partial
 from typing import Any, Callable, Tuple, Union
 
+from jax import grad, jit, lax, ops, tree_util, vmap
+from jax.tree_util import tree_map
 import jax.numpy as jnp
-from jax import grad, jit, lax, ops, tree_map, tree_multimap, vmap
 from jax.scipy.linalg import cholesky, solve_triangular
 
 from bayex.types import Array
 
-GParameters = namedtuple("GParameters", ["noise", "amplitude", "lengthscale"])
+GPParams = namedtuple("GPParams", ["noise", "amplitude", "lengthscale"])
+GPState = namedtuple("GPState", ["params", "momentums", "scales"])
 DataTypes = namedtuple("DataTypes", ["integers"])
 
 
@@ -27,7 +29,7 @@ def softplus(x: Array) -> Array:
 
 
 def exp_quadratic(x1: Array, x2: Array, ls: Array) -> Array:
-    return jnp.exp(-jnp.sum((x1 - x2) ** 2 / ls ** 2))
+    return jnp.exp(-jnp.sum((x1 - x2) ** 2 / ls**2))
 
 
 def round_integers(arr: Array, dtypes: Union[DataTypes, None]) -> Array:
@@ -39,16 +41,18 @@ def round_integers(arr: Array, dtypes: Union[DataTypes, None]) -> Array:
         return arr
 
     indexes = dtypes.integers
-    for idx in indexes:
-        arr = ops.index_update(arr, ops.index[:, idx], jnp.round(arr[:, idx]))
+    if indexes:
+        integers = jnp.zeros(shape=arr.shape[1])
+        integers = integers.at[tuple(indexes)].set(1)
+        arr = jnp.where(integers[None], jnp.round(arr), arr)
     return arr
 
 
 def gaussian_process(
-    params: GParameters,
+    params: GPParams,
     x: Array,
     y: Array,
-    dtypes: DataTypes = None,
+    dtypes: Union[DataTypes, None] = None,
     xt: Array = None,
     compute_ml: bool = False,
 ) -> Any:
@@ -61,7 +65,7 @@ def gaussian_process(
     # Rounding integer values before computing the covariance matrices.
     x = round_integers(x, dtypes)
 
-    noise, amp, ls = tree_map(softplus, params)
+    noise, amp, ls = tree_util.tree_map(softplus, params)
     kernel = partial(exp_quadratic, ls=ls)
 
     # Normalization of measurements
@@ -110,17 +114,14 @@ grad_fun = jit(grad(marginal_likelihood))
 predict = jit(partial(gaussian_process, compute_ml=False))
 
 
-@jit
-def train(
+def posterior_fit(
     x: Array,
     y: Array,
-    params: GParameters,
-    momentums: GParameters,
-    scales: GParameters,
+    state: GPState,
     dtypes: DataTypes,
-    lr: float = 0.01,
-    nsteps: int = 20,
-) -> Tuple[GParameters, GParameters, GParameters]:
+    lr: float = 0.001,
+    nsteps: int = 1500,
+) -> GPState:
     """
     Training function of the Gaussian Process Regressor.
 
@@ -137,29 +138,20 @@ def train(
     Tuple with the trained `params`, `momentums` and `scales`.
     """
 
-    def train_step(
-        params: GParameters, momentums: GParameters, scales: GParameters
-    ) -> Tuple:
+    def train_step(state: GPState) -> GPState:
+        params, momentums, scales = state
         grads = grad_fun(params, x, y, dtypes=dtypes)
-        momentums = tree_multimap(
-            lambda m, g: 0.9 * m + 0.1 * g, momentums, grads
-        )
-        scales = tree_multimap(
-            lambda s, g: 0.9 * s + 0.1 * g ** 2, scales, grads
-        )
-        params = tree_multimap(
+
+        momentums = tree_map(lambda m, g: 0.9 * m + 0.1 * g, momentums, grads)
+        scales = tree_map(lambda s, g: 0.9 * s + 0.1 * g**2, scales, grads)
+        params = tree_map(
             lambda p, m, s: p - lr * m / jnp.sqrt(s + 1e-5),
             params,
             momentums,
             scales,
         )
-        return params, momentums, scales
+        new_state = GPState(params, momentums, scales)
+        return new_state
 
-    params, momentums, scales = lax.fori_loop(
-        0,
-        nsteps,
-        lambda _, v: train_step(*v),
-        (params, momentums, scales),
-    )
-
-    return params, momentums, scales
+    state = lax.fori_loop(0, nsteps, lambda _, s: train_step(s), state)
+    return state
