@@ -1,18 +1,12 @@
 from typing import NamedTuple, Optional
 
+from jax import tree_util
 import jax.numpy as jnp
-from jax.tree_util import tree_map
 
 
-class Observable(NamedTuple):
-    inputs: jnp.ndarray
-    output: jnp.ndarray
-
-
-class MaskedObservables(NamedTuple):
-    inputs: jnp.ndarray
-    outputs: jnp.ndarray
-    num: int
+class Measures(NamedTuple):
+    x: jnp.ndarray
+    y: jnp.ndarray
 
 
 class DataTypes(NamedTuple):
@@ -29,11 +23,13 @@ def extend_array(arr: jnp.ndarray, pad_width: int, axis: int) -> jnp.ndarray:
     return jnp.pad(arr, pad_shape, mode="edge")
 
 
-def add_observable(observables, new_observable) -> MaskedObservables:
-    n = observables.num
-    current_obs = Observable(observables.inputs, observables.outputs)
-    new_obs = tree_map(lambda x, y: x.at[n].set(y), current_obs, new_observable)
-    return MaskedObservables(new_obs.inputs, new_obs.output, num=n + 1)
+def update_data(measures: Measures, new_measure: Measures) -> Measures:
+    print(new_measure.x.reshape(1, -1).shape)
+#    new_x = jnp.stack((measures.x, new_measure.x.reshape(1, -1)), axis=0)
+    new_x = measures.x
+    new_y = jnp.stack((measures.y, new_measure.y), axis=-1)
+    return Measures(x=new_x, y=new_y)
+#    return tree_util.tree_map(lambda x, y: jnp.append(x, y.reshape(1, -1), axis=0), measures, new_measure)
 
 
 def round_integers(arr: jnp.ndarray, dtypes: Optional[DataTypes] = None) -> jnp.ndarray:

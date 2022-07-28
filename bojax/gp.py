@@ -3,11 +3,11 @@ from functools import partial
 from typing import Any, Callable, Optional
 
 import jax.numpy as jnp
-from jax import grad, lax, vmap
+from jax import grad, lax, vmap, jit
 from jax.scipy.linalg import cholesky, solve_triangular
 from jax.tree_util import tree_map
 
-from bayex.observables import DataTypes, round_integers
+from bojax.observables import DataTypes, round_integers
 
 GPParams = namedtuple("GPParams", ["noise", "amplitude", "lengthscale"])
 GPState = namedtuple("GPState", ["params", "momentums", "scales"])
@@ -58,6 +58,7 @@ def gaussian_process(
     # In order to compute the inverse of K, i.e K^-1, we make use of Cholesky
     # factorization K = LxL^T to improve performance on the solving.
     L = cholesky(K, lower=True)
+    print(L.shape, x.shape, y.shape)
     K_inv_y = solve_triangular(L.T, solve_triangular(L, y, lower=True))
 
     if compute_ml:

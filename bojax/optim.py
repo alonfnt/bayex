@@ -5,9 +5,9 @@ import jax.numpy as jnp
 from jax import random, vmap
 from jax.tree_util import tree_map
 
-from bayex.acq import expected_improvement
-from bayex.gp import GPParams, GPState, posterior_fit
-from bayex.observables import DataTypes, MaskedObservables, Observable, extend_array, round_integers
+from bojax.acq import expected_improvement
+from bojax.gp import GPParams, GPState, posterior_fit
+from bojax.observables import DataTypes, Measures, round_integers
 
 
 class BayesianOptimizer(NamedTuple):
@@ -28,7 +28,6 @@ def optimizer(
     fn: Callable,
     bounds: dict,
     dtypes: Optional[dict] = None,
-    max_samples: int = 1000,
     acq: Callable = expected_improvement,
 ) -> BayesianOptimizer:
 
@@ -47,7 +46,7 @@ def optimizer(
     lbounds, ubounds = _bounds[:, 0], _bounds[:, 1]
     input_sampler = partial(_sample_inputs, minval=lbounds, maxval=ubounds, dtypes=_dtypes)
 
-    def init_fn(key, init_samples: int) -> Tuple[GPState, MaskedObservables]:
+    def init_fn(key, init_samples: int) -> Tuple[GPState, Measures]:
         params = GPParams(
             noise=jnp.full((1, 1), -5.0),
             amplitude=jnp.zeros((1, 1)),
@@ -59,21 +58,18 @@ def optimizer(
 
         X = input_sampler(key, (init_samples, ndim))
         Y = vmap(fn)(*jnp.transpose(X))
+        return gp_state, Measures(x=X, y=Y)
 
-        X = extend_array(X, max_samples - init_samples, 0)
-        Y = extend_array(Y, max_samples - init_samples, 0)
-        return gp_state, MaskedObservables(inputs=X, outputs=Y, num=init_samples)
-
-    def fit_fn(state: GPState, ob: MaskedObservables) -> GPState:
-        state = posterior_fit(ob.inputs, ob.outputs, state, dtypes=_dtypes)
+    def fit_fn(state: GPState, ob: Measures) -> GPState:
+        state = posterior_fit(ob.x, ob.y, state, dtypes=_dtypes)
         return state
 
-    def sample_fn(key, state: GPState, observables: MaskedObservables, n_seed=1000) -> Observable:
+    def sample_fn(key, state: GPState, observables: Measures, n_seed=1000) -> Measures:
         domain = input_sampler(key, shape=(n_seed, ndim))
-        x, y, _ = observables
+        x, y = observables
         results = acq(domain, state.params, x, y, dtypes=_dtypes)
         X = domain[jnp.argmax(results)]
         y = fn(*X)
-        return Observable(inputs=X, output=y)
+        return Measures(x=X, y=y)
 
     return BayesianOptimizer(init=init_fn, fit=fit_fn, sample=sample_fn)

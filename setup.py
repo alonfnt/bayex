@@ -27,10 +27,9 @@ setup(
         "Programming Language :: Python :: 3 :: Only",
     ],
     keywords="bayesian-optimization, jax, bayesian, automatic-differentiation, optimization",
-    package_dir={"": "bojax"},
     packages=find_packages(where="bojax"),
     python_requires=">=3.7, <4",
-    install_requires=["jax, jaxlib"],
+    install_requires=["jax", "jaxlib"],
     extras_require={
         "dev": ["pytest", "pytest-cov", "pre-commit", "flake8", "mypy", "isort"],
         "test": ["coverage"],

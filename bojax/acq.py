@@ -3,8 +3,8 @@ from typing import Union
 import jax.numpy as jnp
 from jax.scipy.stats import norm
 
-from bayex.gp import GPParams, predict
-from bayex.observables import DataTypes
+from bojax.gp import GPParams, predict
+from bojax.observables import DataTypes
 
 
 def expected_improvement(
