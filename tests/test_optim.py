@@ -8,57 +8,27 @@ SEED = 42
 
 
 def test_1D_optim():
-    """
-    Complete test of the optim for a very basic 1d function.
-    """
-
     def f(x):
-        return jnp.sin(x) - x / (jnp.cos(x) + 1) + x ** 3 - (x + 1) ** 4
+        return jnp.sin(x) - x / (jnp.cos(x) + 1) + x**3 - (x + 1) ** 4
 
     TARGET = -0.3747
     bounds = dict(x=(-2, 2))
 
-    param = bayex.optim(f, constrains=bounds, seed=SEED, n=10, n_init=5)
-    assert jnp.allclose(TARGET, param.target, atol=1e-02)
+    opt = bayex.optimizer(f, bounds=bounds, max_samples=200)
 
+    init_key, key = jax.random.split(KEY, 2)
+    state, obs = opt.init(init_key, 5)
 
-def test_2D_optim():
-    """
-    Complete test of the optim function for 2 dimensional function.
-    """
+    @jax.jit
+    def optimize(carry):
+        key, state, observations = carry
+        key, sample_key = jax.random.split(key)
+        state = opt.fit(state, observations)
+        new_obs = opt.sample(sample_key, state, observations)
+        observations = bayex.add_observable(observations, new_obs)
+        return key, state, observations
 
-    def f(x, y):
-        return -(y ** 2) - (x - y) ** 2 + 3 * x / y - 2
+    key, state, obs = jax.lax.fori_loop(0, 10, lambda _, c: optimize(c), (key, state, obs))
 
-    TARGET = 2.24936
-    bounds = dict(x=(0, 5), y=(1, 4))
-
-    params = bayex.optim(f, constrains=bounds, seed=SEED, n=15, n_init=10)
-    assert jnp.allclose(TARGET, params.target, rtol=1e-01)
-
-
-def test_optim_params_correct_output():
-    def f(x, y, z):
-        return -(y ** 2) - (x - y) ** 2 + 3 * z / y - 2
-
-    bounds = dict(x=(0, 5), y=(1, 4), z=(1, 20))
-
-    param = bayex.optim(f, constrains=bounds, seed=SEED, n=2, n_init=2)
-    assert type(param.target) == float
-    assert type(param.params) == dict
-    assert len(param.params) == len(bounds)
-    assert param.params_all.ndim == 2
-    assert param.target_all.size == 4
-
-
-def test_cast_to_int():
-    def f(x, y, z):
-        return -(y ** 2) - (x - y) ** 2 + 3 * z / y - 2
-
-    bounds = dict(x=(0, 5), y=(1, 4), z=(1, 20))
-    ctypes = dict(z=int)
-
-    param = bayex.optim(
-        f, constrains=bounds, seed=SEED, n=2, n_init=2, ctypes=ctypes
-    )
-    assert int(param.params["z"]) == param.params["z"]
+    target = jnp.max(obs.outputs)
+    assert jnp.allclose(TARGET, target, atol=1e-02)

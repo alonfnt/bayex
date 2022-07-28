@@ -4,9 +4,6 @@ from typing import Callable
 import jax.numpy as jnp
 from jax.tree_util import tree_map
 
-from bayex.optim import OptimizerParameters
-from bayex.types import Array
-
 
 class Log(Enum):
     ALL = 1
@@ -14,7 +11,7 @@ class Log(Enum):
 
 
 def show_sampling(
-    x: Array, y: Array, f: Callable, verbose: Log, min_width: int
+    x: jnp.ndarray, y: jnp.ndarray, f: Callable, verbose: Log, min_width: int
 ) -> None:
     """
     Prints the sampled points during the optimization as well as the target
@@ -52,9 +49,7 @@ def show_sampling(
         y_prev = yi
 
 
-def show_results(
-    res: OptimizerParameters, verbose: Log = Log.ALL, min_width: int = 10
-) -> None:
+def show_results(res, verbose: Log = Log.ALL, min_width: int = 10) -> None:
     """
     Prints the sampled points during the optimization as well as the target
     value.
