@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Callable, NamedTuple, Tuple, Union
+from typing import Callable, NamedTuple, Tuple, Union, Optional
 
 import jax.numpy as jnp
 from jax import jacrev, jit, lax, random, tree_map, vmap
@@ -121,7 +121,7 @@ def optim(
     seed: int = 42,
     n_init: int = 5,
     n: int = 10,
-    ctypes: dict = None,
+    ctypes: Optional[dict] = None,
     acq: ACQ = ACQ.EI,
     **acq_params: dict,
 ) -> OptimizerParameters:

@@ -1,9 +1,9 @@
 from collections import namedtuple
 from functools import partial
-from typing import Any, Callable, Tuple, Union
+from typing import Any, Callable, Tuple, Union, Optional
 
+from jax import grad, jit, lax, tree_util, vmap
 import jax.numpy as jnp
-from jax import grad, jit, lax, ops, tree_map, tree_multimap, vmap
 from jax.scipy.linalg import cholesky, solve_triangular
 
 from bayex.types import Array
@@ -40,7 +40,7 @@ def round_integers(arr: Array, dtypes: Union[DataTypes, None]) -> Array:
 
     indexes = dtypes.integers
     for idx in indexes:
-        arr = ops.index_update(arr, ops.index[:, idx], jnp.round(arr[:, idx]))
+        arr = arr.at[:,idx].set(jnp.round(arr[:, idx]))
     return arr
 
 
@@ -48,7 +48,7 @@ def gaussian_process(
     params: GParameters,
     x: Array,
     y: Array,
-    dtypes: DataTypes = None,
+    dtypes: Optional[DataTypes] = None,
     xt: Array = None,
     compute_ml: bool = False,
 ) -> Any:
@@ -61,7 +61,7 @@ def gaussian_process(
     # Rounding integer values before computing the covariance matrices.
     x = round_integers(x, dtypes)
 
-    noise, amp, ls = tree_map(softplus, params)
+    noise, amp, ls = tree_util.tree_map(softplus, params)
     kernel = partial(exp_quadratic, ls=ls)
 
     # Normalization of measurements
@@ -141,13 +141,13 @@ def train(
         params: GParameters, momentums: GParameters, scales: GParameters
     ) -> Tuple:
         grads = grad_fun(params, x, y, dtypes=dtypes)
-        momentums = tree_multimap(
+        momentums = tree_util.tree_map(
             lambda m, g: 0.9 * m + 0.1 * g, momentums, grads
         )
-        scales = tree_multimap(
+        scales = tree_util.tree_map(
             lambda s, g: 0.9 * s + 0.1 * g ** 2, scales, grads
         )
-        params = tree_multimap(
+        params = tree_util.tree_map(
             lambda p, m, s: p - lr * m / jnp.sqrt(s + 1e-5),
             params,
             momentums,

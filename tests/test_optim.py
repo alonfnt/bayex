@@ -33,7 +33,7 @@ def test_2D_optim():
     TARGET = 2.24936
     bounds = dict(x=(0, 5), y=(1, 4))
 
-    params = bayex.optim(f, constrains=bounds, seed=SEED, n=15, n_init=10)
+    params = bayex.optim(f, constrains=bounds, seed=SEED, n=25, n_init=10)
     assert jnp.allclose(TARGET, params.target, rtol=1e-01)
 
 
