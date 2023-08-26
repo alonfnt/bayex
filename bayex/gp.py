@@ -1,6 +1,6 @@
 from collections import namedtuple
 from functools import partial
-from typing import Any, Callable, Tuple, Union
+from typing import Any, Callable, Tuple, Union, Optional
 
 from jax import grad, jit, lax, tree_util, vmap
 import jax.numpy as jnp
@@ -48,7 +48,7 @@ def gaussian_process(
     params: GParameters,
     x: Array,
     y: Array,
-    dtypes: DataTypes = None,
+    dtypes: Optional[DataTypes] = None,
     xt: Array = None,
     compute_ml: bool = False,
 ) -> Any:
