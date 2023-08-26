@@ -2,8 +2,8 @@ from collections import namedtuple
 from functools import partial
 from typing import Any, Callable, Tuple, Union
 
+from jax import grad, jit, lax, ops, tree_util, vmap
 import jax.numpy as jnp
-from jax import grad, jit, lax, ops, tree_map, tree_multimap, vmap
 from jax.scipy.linalg import cholesky, solve_triangular
 
 from bayex.types import Array
@@ -61,7 +61,7 @@ def gaussian_process(
     # Rounding integer values before computing the covariance matrices.
     x = round_integers(x, dtypes)
 
-    noise, amp, ls = tree_map(softplus, params)
+    noise, amp, ls = tree_util.tree_map(softplus, params)
     kernel = partial(exp_quadratic, ls=ls)
 
     # Normalization of measurements
@@ -141,13 +141,13 @@ def train(
         params: GParameters, momentums: GParameters, scales: GParameters
     ) -> Tuple:
         grads = grad_fun(params, x, y, dtypes=dtypes)
-        momentums = tree_multimap(
+        momentums = tree_util.tree_map(
             lambda m, g: 0.9 * m + 0.1 * g, momentums, grads
         )
-        scales = tree_multimap(
+        scales = tree_util.tree_map(
             lambda s, g: 0.9 * s + 0.1 * g ** 2, scales, grads
         )
-        params = tree_multimap(
+        params = tree_util.tree_map(
             lambda p, m, s: p - lr * m / jnp.sqrt(s + 1e-5),
             params,
             momentums,
