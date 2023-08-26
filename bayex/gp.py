@@ -2,7 +2,7 @@ from collections import namedtuple
 from functools import partial
 from typing import Any, Callable, Tuple, Union
 
-from jax import grad, jit, lax, ops, tree_util, vmap
+from jax import grad, jit, lax, tree_util, vmap
 import jax.numpy as jnp
 from jax.scipy.linalg import cholesky, solve_triangular
 
@@ -40,7 +40,7 @@ def round_integers(arr: Array, dtypes: Union[DataTypes, None]) -> Array:
 
     indexes = dtypes.integers
     for idx in indexes:
-        arr = ops.index_update(arr, ops.index[:, idx], jnp.round(arr[:, idx]))
+        arr = arr.at[:,idx].set(jnp.round(arr[:, idx]))
     return arr
 
 
