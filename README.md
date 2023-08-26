@@ -73,13 +73,3 @@ as well as the input parameters that yield it
 >> optim_params.params
 {'x': 2.865405, 'y': 2.8862667}
 ```
-
-## Contributing<a id="contributing"></a>
-Everyone can contribute to Bayex and we welcome pull requests as well as raised issues.
-Please refer to this [contribution guide](CONTRIBUTING.md) on how to do it.
-
-
-## References
-1. [A Tutorial on Bayesian Optimization](https://arxiv.org/abs/1807.02811)
-2. [BayesianOptimization Library](https://github.com/fmfn/BayesianOptimization)
-3. [JAX: Autograd and XLA](https://github.com/google/jax)
