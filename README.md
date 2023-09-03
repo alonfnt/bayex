@@ -1,11 +1,11 @@
 # BAYEX: Bayesian Optimization powered by JAX
 [![tests](https://github.com/alonfnt/bayex/actions/workflows/tests.yml/badge.svg)](https://github.com/alonfnt/bayex/actions/workflows/tests.yml)
 
-![bayesian_figure](docs/figure.png)
+![figure](https://github.com/alonfnt/bayex/assets/38870744/467c7594-d3e0-4eb7-80ea-a738277312a3)
+
 [**Features**](#features)
 | [**Installation**](#installation)
 | [**Usage**](#usage)
-| [**Contributing**](#contributing)
 
 Bayex is a high performance Bayesian global optimization library using Gaussian processes.
 In contrast to existing Bayesian optimization libraries, Bayex is completly written in JAX.
