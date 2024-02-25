@@ -54,7 +54,7 @@ opt_state = optimizer.init(ys, params)
 ori_key = jax.random.key(42)
 for step in range(20):
     key = jax.random.fold_in(ori_key, step)
-    new_params, (xs, mu, std) = optimizer.sample(key, opt_state)
+    new_params = optimizer.sample(key, opt_state)
     y_new = f(**new_params)
     opt_state = optimizer.fit(opt_state, y_new, new_params)
 ```
