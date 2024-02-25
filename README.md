@@ -2,8 +2,8 @@
 [![tests](https://github.com/alonfnt/bayex/actions/workflows/tests.yml/badge.svg)](https://github.com/alonfnt/bayex/actions/workflows/tests.yml)
 
 <p align="center">
-    <img src="https://github.com/alonfnt/bayex/assets/38870744/bbf52b8b-8b24-4c95-91c0-4e3d1b99f45e" height="384">
-    <img src="https://github.com/alonfnt/bayex/assets/38870744/882fecc7-bc30-4267-ad1d-687fdbbe2cdc" height="384">
+    <img src="https://github.com/alonfnt/bayex/assets/38870744/bbf52b8b-8b24-4c95-91c0-4e3d1b99f45e" height="300">
+    <img src="https://github.com/alonfnt/bayex/assets/38870744/882fecc7-bc30-4267-ad1d-687fdbbe2cdc" height="300">
 </p>
 
 [**Installation**](#installation)
