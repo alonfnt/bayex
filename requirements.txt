@@ -1,2 +1,3 @@
+jaxlib
 jax
 numpy
