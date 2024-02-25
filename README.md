@@ -1,6 +1,7 @@
 # Bayex: Minimal Bayesian Optimization in JAX
 [![tests](https://github.com/alonfnt/bayex/actions/workflows/tests.yml/badge.svg)](https://github.com/alonfnt/bayex/actions/workflows/tests.yml)
-
+>[!NOTE]
+>Bayex is currently a minimal, personally developed implementation that requires further development for broader application. If you're interested in engaging with Jax and enhancing Bayex, your contributions would be highly welcomed and appreciated.
 <p align="center">
     <img src="https://github.com/alonfnt/bayex/assets/38870744/ffb920ed-f347-4185-9abe-24ec2d0a22f1" height="300">
     <img src="https://github.com/alonfnt/bayex/assets/38870744/882fecc7-bc30-4267-ad1d-687fdbbe2cdc" height="300">
@@ -10,6 +11,8 @@
 | [**Usage**](#usage)
 | [**Contributing**](#contributing)
 | [**License**](#license)
+
+
 
 Bayex is a lightweight Bayesian optimization library designed for efficiency and flexibility, leveraging the power of JAX for high-performance numerical computations.
 This library aims to provide an easy-to-use interface for optimizing expensive-to-evaluate functions through Gaussian Process (GP) models and various acquisition functions. Whether you're maximizing or minimizing your objective function, Bayex offers a simple yet powerful set of tools to guide your search for optimal parameters.
