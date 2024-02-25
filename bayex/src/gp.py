@@ -36,9 +36,6 @@ def gaussian_process(
     n = x.shape[0]
 
     noise, amp, ls = jax.tree_util.tree_map(softplus, params)
-#    noise = softplus(params['noise'])
-#    amp = softplus(params['amplitude'])
-#    ls = softplus(params['lengthscale'])
 
     ymean = jnp.mean(y, where=mask)
     y = (y - ymean) * mask
@@ -48,13 +45,6 @@ def gaussian_process(
     K_inv_y = solve_triangular(L.T, solve_triangular(L, y, lower=True), lower=False)
 
     if compute_ml:
-#      ml = jnp.sum(
-#          -0.5 * jnp.dot(y.T, K_inv_y) -
-#          jnp.sum(jnp.log(jnp.diag(L))) -
-#          (jnp.sum(mask) / 2.) * jnp.log(2*jnp.pi))
-#      ml -= jnp.sum(-0.5 * jnp.log(2 * 3.1415) - jnp.log(amp) - 0.5 * jnp.log(amp)**2)
-#      return -ml
-
         logp = 0.5 * jnp.dot(y.T, K_inv_y)
         logp += jnp.sum(jnp.log(jnp.diag(L)))
         logp += (jnp.sum(mask) / 2) * jnp.log(2 * jnp.pi)
