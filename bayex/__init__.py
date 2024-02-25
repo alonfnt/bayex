@@ -1,12 +1,11 @@
-from bayex.acq import ACQ
-from bayex.optim import optim
-from bayex.screen import Log, show_results
+from bayex.src.optimizer import Optimizer, OptimizerState
+from bayex.src import domain
 
-__version__ = "0.1.0"
+
+__version__ = "0.2.0"
 
 __all__ = [
-    "optim",
-    "show_results",
-    "Log",
-    "ACQ",
+        "Optimizer",
+        "OptimizerState",
+        "domain",
 ]

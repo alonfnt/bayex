@@ -1,7 +1,3 @@
-absl-py
-flatbuffers
-jax
 jaxlib
+jax
 numpy
-opt-einsum
-scipy
