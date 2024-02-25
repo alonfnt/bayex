@@ -17,17 +17,17 @@ This library aims to provide an easy-to-use interface for optimizing expensive-t
 ## Installation<a id="installation"></a>
 Bayex can be installed using [PyPI](https://pypi.org/project/bayex/) via `pip`:
 ```
-pip install Bayex
+pip install bayex
 ```
 or from GitHub directly
 ```
-pip install git+git://github.com/alonfnt/Bayex.git
+pip install git+git://github.com/alonfnt/bayex.git
 ```
 
 Likewise, you can clone this repository and install it locally
 
 ```bash
-git clone https://github.com/yourrepository/bayex.git
+git clone https://github.com/alonfnt/bayex.git
 cd bayex
 pip install -r requirements.txt
 ```
