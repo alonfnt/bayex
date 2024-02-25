@@ -1,7 +1,6 @@
-from functools import partial
 import jax.numpy as jnp
 import pytest
-from bojax.src.gp import GPParams, gaussian_process, exp_quadratic, cov
+from bayex.src.gp import GPParams, gaussian_process, exp_quadratic, cov
 
 @pytest.mark.parametrize("x1, x2, mask, expected", [
     (jnp.array([0]), jnp.array([0]), 1, 1),

@@ -3,14 +3,12 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "bojax"
+name = "bayex"
 version = "0.1.0"
-description = "Minimal Bayesian Optimization with Gaussian Processes library powered by JAX."
+description = "Minimal Bayesian Optimization Implementation with Gaussian Processes written in JAX."
 readme = "README.md"
 requires-python = ">=3.9"
-authors = [
-    {name = "Albert Alonso", email = "alonfnt@pm.me"},
-]
+authors = [{name = "Albert Alonso", email = "alonfnt@pm.me"}, ]
 license = {file = "LICENSE"}
 keywords = ["jax", "bayesian-optimization", "automatic-differentiation", "gaussian-process", "machine-learning"]
 classifiers = [
@@ -24,3 +22,13 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
 ]
+dependencies = ["jax", "jaxlib", "numpy"]
+
+[tool.setuptools]
+packages = ["bayex"]
+
+[project.urls]
+"Homepage" = "https://github.com/alonfnt/bayex"
+"Documentation" = "https://github.com/alonfnt/bayex"
+"Source" = "https://github.com/alonfnt/bayex"
+"Bug Tracker" = "https://github.com/alonfnt/bayex/issues"

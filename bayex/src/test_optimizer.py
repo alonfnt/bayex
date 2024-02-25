@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-import bojax
+import bayex
 
 KEY = jax.random.key(42)
 SEED = 42
@@ -16,9 +16,9 @@ def test_1D_optim():
 
     TARGET = np.max(f(np.linspace(-2, 2, 1000)))
 
-    domain = {'x': bojax.domain.Real(-2, 2)}
+    domain = {'x': bayex.domain.Real(-2, 2)}
 
-    opt = bojax.Optimizer(domain=domain, maximize=True)
+    opt = bayex.Optimizer(domain=domain, maximize=True)
 
     # Evaluate 3 times the function
     params = {'x': [0.0, 1.0, 2.0]}
@@ -28,8 +28,8 @@ def test_1D_optim():
     assert opt_state.best_score == np.max(ys)
     assert opt_state.best_params['x'] == params['x'][np.argmax(ys)]
 
-    assert type(opt_state) == bojax.OptimizerState
-    assert type(opt_state.gp_state) == bojax.src.gp.GPState # pyright: ignore
+    assert type(opt_state) == bayex.OptimizerState
+    assert type(opt_state.gp_state) == bayex.src.gp.GPState # pyright: ignore
 
     assert opt_state.params['x'].shape == (10,)
     assert opt_state.ys.shape == (10,)
@@ -55,16 +55,16 @@ def test_1D_optim():
 
 
 def test_evaluate_raise_invalid_acq_fun():
-    domain = {'x': bojax.domain.Real(-2, 2)}
+    domain = {'x': bayex.domain.Real(-2, 2)}
 
     # This shouldn't raise an error
     for acq in ['EI',]:
-        bojax.Optimizer(domain=domain, acq=acq)
+        bayex.Optimizer(domain=domain, acq=acq)
 
     # But this should!
     for acq in ['random', 'magic']:
         with pytest.raises(ValueError, match=f"Acquisition function {acq} is not implemented"):
-            bojax.Optimizer(domain=domain, acq=acq)
+            bayex.Optimizer(domain=domain, acq=acq)
 
 
 def test_2D_rosenbrock_fun():
@@ -83,8 +83,8 @@ def test_2D_rosenbrock_fun():
     min_y = Y.flatten()[min_index]
     min_value = Z.flatten()[min_index]
 
-    domain = {'x': bojax.domain.Real(-2, 2), 'y': bojax.domain.Real(-2, 2)}
-    opt = bojax.Optimizer(domain=domain, maximize=False)
+    domain = {'x': bayex.domain.Real(-2, 2), 'y': bayex.domain.Real(-2, 2)}
+    opt = bayex.Optimizer(domain=domain, maximize=False)
 
     params = {'x': [0.0, 0.5, 2.0], 'y': [0.0, 0.5, 2.0]}
     ys = [rosenbrock(x, y) for x,y in zip(params['x'], params['y'])]
