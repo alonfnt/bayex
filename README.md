@@ -1,85 +1,68 @@
-# BAYEX: Bayesian Optimization powered by JAX
+# BoJax: Minimal Bayesian Optimization in JAX
 [![tests](https://github.com/alonfnt/bayex/actions/workflows/tests.yml/badge.svg)](https://github.com/alonfnt/bayex/actions/workflows/tests.yml)
 
-![bayesian_figure](docs/figure.png)
-[**Features**](#features)
-| [**Installation**](#installation)
+<p align="center">
+    <img src="https://github.com/alonfnt/bayex/assets/38870744/bbf52b8b-8b24-4c95-91c0-4e3d1b99f45e" height="384">
+    <img src="https://github.com/alonfnt/bayex/assets/38870744/882fecc7-bc30-4267-ad1d-687fdbbe2cdc" height="384">
+</p>
+
+[**Installation**](#installation)
 | [**Usage**](#usage)
 | [**Contributing**](#contributing)
+| [**License**](#license)
 
-Bayex is a high performance Bayesian global optimization library using Gaussian processes.
-In contrast to existing Bayesian optimization libraries, Bayex is completly written in JAX.
-
-Bayesian Optimization (BO) methods are useful for optimizing functions that are expensive to evaluate, lack an analytical expression and whose evaluations can be contaminated by noise.
-These methods rely typically on a Gaussian process (GP), upon which an acquisition function guides the optimization process and measures the expected utility of performing an evaluation of the objective at a new suggested point.
-
-## Features<a id="features"></a>
-- **High Performance**: by making use of vectorization and JIT compilation provided by JAX.
-- **Hardware Accelerated**: Bayex can be run on CPU, but also on GPU and TPU wihtout issues.
-- **Discrete variables**: Support for discrete variables.
-- **Multiple Acquisition Functions**: Expected Improvement, Probability of Improvement, Upper/Lower Confidence Bound, etc.
-- **Multiple Kernel choices**: Squared Exponential, Mattern (0.5, 1.0, 1.5), Periodic, etc.
-<!-- - **Parallel**: Parallelizable to multiple XLA devices (TO DO) -->
+Bojax is a lightweight Bayesian optimization library designed for efficiency and flexibility, leveraging the power of JAX for high-performance numerical computations.
+This library aims to provide an easy-to-use interface for optimizing expensive-to-evaluate functions through Gaussian Process (GP) models and various acquisition functions. Whether you're maximizing or minimizing your objective function, Bojax offers a simple yet powerful set of tools to guide your search for optimal parameters.
 
 ## Installation<a id="installation"></a>
-Bayex can be installed using [PyPI](https://pypi.org/project/bayex/) via `pip`:
+Bayex can be installed using [PyPI](https://pypi.org/project/bojax/) via `pip`:
 ```
-pip install bayex
+pip install bojax
 ```
 or from GitHub directly
 ```
-pip install git+git://github.com/alonfnt/bayex.git
+pip install git+git://github.com/alonfnt/bojax.git
 ```
-For more advance instructions please refer to the [installation guide](INSTALLATION.md).
+
+Likewise, you can clone this repository and install it locally
+
+```bash
+git clone https://github.com/yourrepository/bojax.git
+cd bojax
+pip install -r requirements.txt
+```
 
 ## Usage<a id="usage"></a>
-Using Bayex is very straightforward:
+Using BoJax is quite simple despite its low level approach:
 ```python
-import bayex
+import jax
+import numpy as np
+import bojax
 
-def f(x, y):
-    return -y ** 2 - (x - y) ** 2 + 3 * x / y - 2
+def f(x):
+    return -(1.4 - 3 * x) * np.sin(18 * x)
 
-constrains = {'x': (-10, 10), 'y': (0, 10)}
-optim_params = bayex.optim(f, constrains=constrains, seed=42, n=10)
+domain = {'x': bojax.domain.Real(0.0, 2.0)}
+optimizer = bojax.Optimizer(domain=domain, maximize=True, acq='PI')
+
+# Define some prior evaluations to initialise the GP.
+params = {'x': [0.0, 0.5, 1.0]}
+ys = [f(x) for x in params['x']
+opt_state = optimizer.init(ys, params)
+
+# Sample new points using Jax PRNG approach.
+ori_key = jax.random.key(42)
+for step in range(20):
+    key = jax.random.fold_in(ori_key, step)
+    new_params, (xs, mu, std) = optimizer.sample(key, opt_state)
+    y_new = f(**new_params)
+    opt_state = optimizer.fit(opt_state, y_new, new_params)
 ```
-showing the results can be done with
-```python
->> bayex.show_results(optim_params)
-   #sample      target          x            y
-      1        -9.84385      2.87875      3.22516
-      2        -307.513     -6.13013      8.86493
-      3        -19.2197      6.8417       1.9193
-      4        -43.6495     -3.09738      2.52383
-      5        -58.9488      2.63803      6.54768
-      6        -64.8658      4.5109       7.47569
-      7        -78.5649      6.91026      8.70257
-      8        -9.49354      5.56705      1.43459
-      9        -9.59955      5.60318      1.39322
-     10        -15.4077      6.37659      1.5895
-     11        -11.7703      5.83045      1.80338
-     12        -11.4169      2.53303      3.32719
-     13        -8.49429      2.67945      3.0094
-     14        -9.17395      2.74325      3.11174
-     15        -7.35265      2.86541      2.88627
-```
-we can also obtain the maximum value found using
-```python
->> optim_params.target
--7.352654457092285
-```
-as well as the input parameters that yield it
-```python
->> optim_params.params
-{'x': 2.865405, 'y': 2.8862667}
-```
+
+with the results being saved at `opt_state`.
 
 ## Contributing<a id="contributing"></a>
-Everyone can contribute to Bayex and we welcome pull requests as well as raised issues.
-Please refer to this [contribution guide](CONTRIBUTING.md) on how to do it.
+We welcome contributions to Bojax! Whether it's adding new features, improving documentation, or reporting issues, please feel free to make a pull request or open an issue.
 
-
-## References
-1. [A Tutorial on Bayesian Optimization](https://arxiv.org/abs/1807.02811)
-2. [BayesianOptimization Library](https://github.com/fmfn/BayesianOptimization)
-3. [JAX: Autograd and XLA](https://github.com/google/jax)
+## License<a id="license"></a>
+Bojax is licensed under the MIT License. See the ![LICENSE](LICENSE) file for more details.
