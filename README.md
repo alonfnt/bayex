@@ -7,13 +7,6 @@
     <img src="https://github.com/alonfnt/bayex/assets/38870744/882fecc7-bc30-4267-ad1d-687fdbbe2cdc" height="300">
 </p>
 
-[**Installation**](#installation)
-| [**Usage**](#usage)
-| [**Contributing**](#contributing)
-| [**License**](#license)
-
-
-
 Bayex is a lightweight Bayesian optimization library designed for efficiency and flexibility, leveraging the power of JAX for high-performance numerical computations.
 This library aims to provide an easy-to-use interface for optimizing expensive-to-evaluate functions through Gaussian Process (GP) models and various acquisition functions. Whether you're maximizing or minimizing your objective function, Bayex offers a simple yet powerful set of tools to guide your search for optimal parameters.
 
@@ -21,18 +14,6 @@ This library aims to provide an easy-to-use interface for optimizing expensive-t
 Bayex can be installed using [PyPI](https://pypi.org/project/bayex/) via `pip`:
 ```
 pip install bayex
-```
-or from GitHub directly
-```
-pip install git+git://github.com/alonfnt/bayex.git
-```
-
-Likewise, you can clone this repository and install it locally
-
-```bash
-git clone https://github.com/alonfnt/bayex.git
-cd bayex
-pip install -r requirements.txt
 ```
 
 ## Usage<a id="usage"></a>
