@@ -1,3 +1,0 @@
-jaxlib
-jax
-numpy
