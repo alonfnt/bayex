@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 from jax.scipy.stats import norm
 
-from bayex.src.gp import GPParams, predict
+from bayex.gp import GPParams, predict
 
 
 def expected_improvement(
