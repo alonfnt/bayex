@@ -5,8 +5,8 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-import bayex.src.acq as boacq
-from bayex.src.gp import GPParams, GPState, posterior_fit
+import bayex.acq as boacq
+from bayex.gp import GPParams, GPState, posterior_fit
 
 
 class OptimizerState(NamedTuple):
