@@ -31,7 +31,7 @@ optimizer = bayex.Optimizer(domain=domain, maximize=True, acq='PI')
 
 # Define some prior evaluations to initialise the GP.
 params = {'x': [0.0, 0.5, 1.0]}
-ys = [f(x) for x in params['x']
+ys = [f(x) for x in params['x']]
 opt_state = optimizer.init(ys, params)
 
 # Sample new points using Jax PRNG approach.
