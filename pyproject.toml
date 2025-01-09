@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bayex"
-version = "0.2.1c"
+version = "0.2.2"
 description = "Minimal Bayesian Optimization Implementation with Gaussian Processes written in JAX."
 readme = "README.md"
 requires-python = ">=3.9"
