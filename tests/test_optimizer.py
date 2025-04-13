@@ -28,7 +28,7 @@ def test_1D_optim():
     assert opt_state.best_score == np.max(ys)
     assert opt_state.best_params['x'] == params['x'][np.argmax(ys)]
 
-    assert type(opt_state) == bayex.OptimizerState
+    assert type(opt_state) == bayex.optimizer.OptimizerState
     assert type(opt_state.gp_state) == bayex.gp.GPState # pyright: ignore
 
     assert opt_state.params['x'].shape == (10,)
