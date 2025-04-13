@@ -6,6 +6,8 @@ import jax
 import jax.numpy as jnp
 from jax.scipy.linalg import cholesky, solve_triangular
 
+MASK_VARIANCE = 1e12 # High variance for masked points to not affect the process.
+
 GPParams = namedtuple("GPParams", ["noise", "amplitude", "lengthscale"])
 GPState = namedtuple("GPState", ["params", "momentums", "scales"])
 
@@ -37,16 +39,18 @@ def gaussian_process(
 
     noise, amp, ls = jax.tree_util.tree_map(softplus, params)
 
-    ymean = jnp.mean(y, where=mask)
+    ymean = jnp.mean(y, where=mask.astype(bool))
     y = (y - ymean) * mask
     x = x / ls
     K = amp * cov(x, x, mask, mask) + (jnp.eye(n) * (noise + 1e-6))
+    K += jnp.eye(n) * (1.0 - mask.astype(float)) * MASK_VARIANCE
     L = cholesky(K, lower=True)
     K_inv_y = solve_triangular(L.T, solve_triangular(L, y, lower=True), lower=False)
 
     if compute_ml:
         logp = 0.5 * jnp.dot(y.T, K_inv_y)
         logp += jnp.sum(jnp.log(jnp.diag(L)))
+        logp -= jnp.sum(1.0 - mask) * 0.5 * jnp.log(MASK_VARIANCE)
         logp += (jnp.sum(mask) / 2) * jnp.log(2 * jnp.pi)
         logp += jnp.sum(-0.5 * jnp.log(2*jnp.pi) - jnp.log(amp) - jnp.log(amp)**2)
         return jnp.sum(logp)
@@ -58,6 +62,7 @@ def gaussian_process(
     mask_t = jnp.ones(len(xt))==1
     K_cross = amp * cov(x, xt, mask, mask_t)
 
+    K_inv_y = K_inv_y * mask # masking
     pred_mean = jnp.dot(K_cross.T, K_inv_y) + ymean
     v = solve_triangular(L, K_cross, lower=True)
     pred_var = amp * cov(xt, xt, mask_t, mask_t) - v.T @ v
