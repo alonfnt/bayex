@@ -5,22 +5,17 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "bayex"
 version = "0.2.2"
-description = "Minimal Bayesian Optimization Implementation with Gaussian Processes written in JAX."
+description = "Minimal Bayesian Optimization in JAX using Gaussian Processes."
 readme = "README.md"
-requires-python = ">=3.9"
 authors = [{name = "Albert Alonso", email = "alonfnt@pm.me"}, ]
 license = {file = "LICENSE"}
 keywords = ["jax", "bayesian-optimization", "automatic-differentiation", "gaussian-process", "machine-learning"]
 classifiers = [
     "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
 	"Intended Audience :: Science/Research",
 	"Topic :: Scientific/Engineering",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
 ]
 dependencies = ["jax", "jaxlib", "numpy"]
 
