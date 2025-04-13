@@ -13,7 +13,7 @@ def expected_improvement(
     gp_params: GPParams,
     xi: float = 0.01,
     ):
-    ymax = jnp.max(ys, where=mask, initial=-jnp.inf)
+    ymax = jnp.max(ys, where=mask.astype(bool), initial=-jnp.inf)
     mu, std = predict(gp_params, xs, ys, mask, xt=x_pred)
     a = mu - ymax - xi
     z = a / (std + 1e-3)
