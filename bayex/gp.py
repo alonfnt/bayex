@@ -43,7 +43,7 @@ def gaussian_process(
     y = (y - ymean) * mask
     x = x / ls
     K = amp * cov(x, x, mask, mask) + (jnp.eye(n) * (noise + 1e-6))
-    K += jnp.eye(n) * (1.0 - mask) * MASK_VARIANCE
+    K += jnp.eye(n) * (1.0 - mask.astype(float)) * MASK_VARIANCE
     L = cholesky(K, lower=True)
     K_inv_y = solve_triangular(L.T, solve_triangular(L, y, lower=True), lower=False)
 
