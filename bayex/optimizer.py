@@ -20,30 +20,22 @@ class OptimizerState(NamedTuple):
 
 class Optimizer:
     """
-    A Bayesian optimization class for optimizing expensive-to-evaluate functions.
+    Bayesian optimizer using Gaussian Processes and acquisition functions.
 
-    Attributes
-    ----------
-    domain : dict
-        A dictionary defining the domain of the parameters to optimize. Each entry specifies the type and domain of a parameter.
-    acq : str
-        The acquisition function to use. Supported values are 'EI' for Expected Improvement, 'PI' for Probability of Improvement, 'UCB' for Upper Confidence Bound, and 'LCB' for Lower Confidence Bound.
-    maximize : bool
-        If True, the optimizer seeks to maximize the objective function. If False, it minimizes the function.
-
-    Methods
-    -------
-    init(self, ys, params):
-        Initializes the optimizer state with initial observations and corresponding parameters.
-
-    sample(self, key, opt_state, size=1000, has_prior=False):
-        Samples new parameters based on the current optimizer state and acquisition function.
-
-    fit(self, opt_state, y, new_params):
-        Updates the optimizer state with a new observation.
+    This class manages the optimization loop for expensive black-box functions
+    by modeling them with a Gaussian Process and selecting samples via
+    acquisition functions such as EI, PI, UCB, or LCB.
     """
 
     def __init__(self, domain, acq='EI', maximize=False):
+        """
+        Initializes the optimizer.
+
+        Args:
+            domain: A dict mapping parameter names to domain objects (e.g., Real, Integer).
+            acq: Acquisition function ('EI', 'PI', 'UCB', 'LCB').
+            maximize: Whether to maximize or minimize the objective.
+        """
         self.domain = domain
         best_fn = jnp.max if maximize else jnp.min
         self.initial = -jnp.inf if maximize else jnp.inf
@@ -63,19 +55,14 @@ class Optimizer:
 
     def init(self, ys, params):
         """
-        Initializes the optimizer state with initial observations and corresponding parameters.
+        Initializes the optimizer state from initial data.
 
-        Parameters
-        ----------
-        ys : Union[jax.Array, np.ndarray]
-            The initial set of objective function values corresponding to the initial parameters.
-        params : dict
-            A dictionary of the initial parameters. Each key should match a key in the domain, and the value should be an array of parameter values.
+        Args:
+            ys: Objective values for the initial parameters.
+            params: Dict of parameter arrays (same keys as domain).
 
-        Returns
-        -------
-        OptimizerState
-            The initialized state of the optimizer, including the best score and parameters found so far.
+        Returns:
+            Initialized OptimizerState.
         """
         # Create a padded jax array for each parameter and each score.
         # In order to keep jax compilations at a bay.
@@ -127,26 +114,16 @@ class Optimizer:
 
     def sample(self, key, opt_state, size=1000, has_prior=False):
         """
-        Samples new parameters based on the acquisition function and current state of the optimizer.
+        Samples new parameters using the acquisition function.
 
-        Parameters
-        ----------
-        key : jax.random.PRNGKey
-            A PRNGKey used for random number generation in JAX.
-        opt_state : OptimizerState
-            The current state of the optimizer.
-        size : int, optional
-            The number of samples to generate. Defaults to 1000.
-        has_prior : bool, optional
-            If True, includes prior mean and standard deviation in the return values. Defaults to False.
+        Args:
+            key: JAX PseudoRandom key for random sampling.
+            opt_state: Current optimizer state.
+            size: Number of samples to draw.
+            has_prior: If True, also return GP predictions.
 
-        Returns
-        -------
-        dict
-            A dictionary of sampled parameters that potentially improve the objective function.
-        tuple, optional
-            A tuple of arrays (means, stds) representing the prior mean and standard deviation of
-            the sampled parameters. Only returned if has_prior is True.
+        Returns:
+            Sampled parameters (dict), and optionally (xs_samples, means, stds).
         """
         # Sample 'size' elements of each distribution.
         keys = jax.random.split(key, len(opt_state.params))
@@ -171,7 +148,16 @@ class Optimizer:
             return best_params, (xs_samples, means, stds)
         return best_params
 
-    def expand(self, opt_state):
+    def expand(self, opt_state: OptimizerState):
+        """
+        Expands internal buffers if no space is available.
+
+        Args:
+            opt_state: Current optimizer state.
+
+        Returns:
+            OptimizerState with expanded storage.
+        """
         current = jnp.sum(opt_state.mask)
 
         if current == len(opt_state.mask):
@@ -195,21 +181,15 @@ class Optimizer:
 
     def fit(self, opt_state, y, new_params):
         """
-        Updates the optimizer state with a new observation.
+        Updates optimizer state with a new observation.
 
-        Parameters
-        ----------
-        opt_state : OptimizerState
-            The current state of the optimizer.
-        y : float
-            The objective function value for the new observation.
-        new_params : dict
-            The parameters corresponding to the new observation.
+        Args:
+            opt_state: Current optimizer state.
+            y: New objective value.
+            new_params: Parameters that produced y.
 
-        Returns
-        -------
-        OptimizerState
-            The updated state of the optimizer including the new observation.
+        Returns:
+            Updated OptimizerState.
         """
         opt_state = self.expand(opt_state) # Prompts recompilation
         opt_state = self._fit(opt_state, y, new_params)
