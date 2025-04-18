@@ -5,6 +5,7 @@ from typing import Any, Optional
 import jax
 import jax.numpy as jnp
 from jax.scipy.linalg import cholesky, solve_triangular
+import optax
 
 MASK_VARIANCE = 1e12 # High variance for masked points to not affect the process.
 
@@ -66,7 +67,7 @@ def gaussian_process(
     pred_mean = jnp.dot(K_cross.T, K_inv_y) + ymean
     v = solve_triangular(L, K_cross, lower=True)
     pred_var = amp * cov(xt, xt, mask_t, mask_t) - v.T @ v
-    pred_std = jnp.sqrt(jnp.diag(pred_var)*(jnp.diag(pred_var)>0))
+    pred_std = jnp.sqrt(jnp.maximum(jnp.diag(pred_var), 1e-10))
     return pred_mean, pred_std
 
 
@@ -74,31 +75,36 @@ marginal_likelihood = partial(gaussian_process, compute_ml=True)
 grad_fun = jax.jit(jax.grad(marginal_likelihood))
 predict = jax.jit(partial(gaussian_process, compute_ml=False))
 
+def neg_log_likelihood(params, x, y, mask):
+    ll = marginal_likelihood(params, x, y, mask)
+
+    # Weak priors to keep things sane
+    # params = jax.tree.map(softplus, params)
+    priors = GPParams(-8.0, 1.0, 1.0)
+    log_prior = jax.tree.map(lambda p, m: jnp.sum((p - m) ** 2), params, priors)
+    log_prior = sum(jax.tree.leaves(log_prior))
+    log_posterior = ll - 0.5 * log_prior
+    return -log_posterior
+
 
 def posterior_fit(
     y: jax.Array,
     x: jax.Array,
     mask: jax.Array,
-    state: GPState,
+    params: GPParams,
     lr: float = 1e-3,
-    trainsteps: int = 300,
+    trainsteps: int = 100,
 ) -> GPState:
 
-    @jax.jit
-    def train_step(i, state):
-        params, momentums, scales = state
-        grads = grad_fun(params, x, y, mask)
+    optimizer = optax.chain(optax.clip_by_global_norm(10.0), optax.adamw(lr))
+    opt_state = optimizer.init(params)
 
-        momentums = jax.tree_util.tree_map(lambda m, g: 0.9 * m + 0.1 * g, momentums, grads)
-        scales = jax.tree_util.tree_map(lambda s, g: 0.9 * s + 0.1 * g**2, scales, grads)
-        params = jax.tree_util.tree_map(
-            lambda p, m, s: p - lr * m / jnp.sqrt(s + 1e-5),
-            params,
-            momentums,
-            scales,
-        )
-        new_state = GPState(params, momentums, scales)
-        return new_state
+    def train_step(carry, _):
+        params, opt_state = carry
+        grads = jax.grad(neg_log_likelihood)(params, x, y, mask)
+        updates, opt_state = optimizer.update(grads, opt_state, params=params)
+        params = optax.apply_updates(params, updates)
+        return (params, opt_state), None
 
-    state = jax.lax.fori_loop(0, trainsteps, train_step, state)
-    return state
+    (params, _), __ = jax.lax.scan(train_step, (params, opt_state), None, length=trainsteps)
+    return params

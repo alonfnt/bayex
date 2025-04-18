@@ -1,21 +1,74 @@
 from functools import partial
-from typing import Union, NamedTuple
+from typing import Union, NamedTuple, Callable
 
 import jax
 import jax.numpy as jnp
 import numpy as np
+import optax
 
 import bayex.acq as boacq
-from bayex.gp import GPParams, GPState, posterior_fit
+from bayex.gp import GPParams, posterior_fit
+from bayex.domain import ParamSpace
 
 
 class OptimizerState(NamedTuple):
+    """
+    Container for the state of the Bayesian optimizer.
+
+    Attributes:
+        params (dict): Dictionary mapping parameter names to their
+            corresponding padded JAX arrays of observed values.
+        ys (jax.Array or np.ndarray): Array of objective values associated
+            with the observed parameters. Includes padding.
+        best_score (float): Best observed objective value so far.
+        best_params (dict): Parameter configuration corresponding to
+            the best_score.
+        mask (jax.Array): Boolean array indicating which entries in
+            `params` and `ys` are valid (i.e., not padding).
+        gp_params (GPParams): Parameters of the Gaussian Process
+            fitted to the observations.
+    """
     params: dict
     ys: Union[jax.Array, np.ndarray]
     best_score: float
     best_params: dict
     mask: jax.Array
-    gp_state: GPState
+    gp_params: GPParams
+
+
+def _optimize_suggestion(params: dict, fun: Callable, max_iter: int = 10):
+    """
+    Applies local optimization (L-BFGS) to a given starting point.
+
+    This function refines candidate points proposed by the acquisition
+    function by performing a fixed number of gradient-based optimization
+    steps using Optax's L-BFGS optimizer.
+
+    Args:
+        params (jax.Array): Initial point in input space to optimize.
+        fun (Callable): Objective function to maximize. It must return a
+            scalar value and support automatic differentiation.
+        max_iter (int): Maximum number of L-BFGS steps to apply.
+
+    Returns:
+        jax.Array: The optimized point after `max_iter` iterations.
+    """
+
+    opt = optax.lbfgs()
+    value_and_grad_fun = optax.value_and_grad_from_state(fun)
+
+    def step(carry, _):
+        params, state = carry
+        value, grad = value_and_grad_fun(params, state=state)
+        updates, state = opt.update(grad, state, params,
+                                    value=value, grad=grad, value_fn=fun)
+        params = optax.apply_updates(params, updates)
+        params = jnp.clip(params, -1e6, 1e6)
+        return (params, state), None
+
+    init_carry = (params, opt.init(params))
+    (final_params, _), __ = jax.lax.scan(step, init_carry, None, length=max_iter)
+    return final_params
 
 
 class Optimizer:
@@ -27,7 +80,7 @@ class Optimizer:
     acquisition functions such as EI, PI, UCB, or LCB.
     """
 
-    def __init__(self, domain, acq='EI', maximize=False):
+    def __init__(self, domain: dict, acq: str = 'EI', maximize: bool = False):
         """
         Initializes the optimizer.
 
@@ -37,10 +90,8 @@ class Optimizer:
             maximize: Whether to maximize or minimize the objective.
         """
         self.domain = domain
-        best_fn = jnp.max if maximize else jnp.min
-        self.initial = -jnp.inf if maximize else jnp.inf
-        self.best_fn = best_fn
-        self.best_params_fn = jnp.argmax if maximize else jnp.argmin
+        self.sign = 1 if maximize else -1
+        self.param_space = ParamSpace(domain)
 
         if acq == 'EI':
             self.acq = jax.jit(boacq.expected_improvement)
@@ -53,7 +104,7 @@ class Optimizer:
         else:
             raise ValueError(f"Acquisition function {acq} is not implemented")
 
-    def init(self, ys, params):
+    def init(self, ys: jax.Array, params: dict, noise_scale: float = -8.0):
         """
         Initializes the optimizer state from initial data.
 
@@ -71,7 +122,8 @@ class Optimizer:
 
         # Convert to jax arrays if they are not already
         ys = jnp.asarray(ys)
-        params = jax.tree_util.tree_map(lambda x: jnp.asarray(x), params)
+        ys = self.sign * ys
+        params = jax.tree.map(lambda x: jnp.asarray(x), params)
 
         # Define padded arrays for the inputs and the outputs
         mask = jnp.zeros(shape=(pad_value,), dtype=jnp.bool_).at[:num_entries].set(True)
@@ -89,30 +141,30 @@ class Optimizer:
 
         # From the given observation, find the better one (either maxima or minima) and return the
         # initial optizer state.
-        best_score = float(self.best_fn(ys[mask]))
-        best_params_idx = self.best_params_fn(ys[mask])
-        best_params = jax.tree_util.tree_map(lambda x: x[mask][best_params_idx], _params)
+        best_score = float(jnp.max(ys[mask]))
+        best_params_idx = jnp.argmax(ys[mask])
+        best_params = jax.tree.map(lambda x: x[mask][best_params_idx], _params)
 
         # Initialize the gaussian processes state
-        gpparams = GPParams(
-            noise=jnp.full((1, 1), -5.0),
+        gp_params = GPParams(
+            noise=jnp.full((1, 1), 1. * noise_scale),
             amplitude=jnp.zeros((1, 1)),
-            lengthscale=jnp.zeros((1, len(_params))),
+            lengthscale=jnp.zeros((1, len(_params)))
         )
-        momentums = jax.tree_util.tree_map(jnp.zeros_like, gpparams)
-        scales = jax.tree_util.tree_map(jnp.ones_like, gpparams)
-        gp_state = GPState(gpparams, momentums, scales)
 
         # Fit to the current observations
         xs = jnp.stack([self.domain[key].transform(_params[key]) for key in _params], axis=1)
-        gp_state = posterior_fit(ys, xs, mask=mask, state=gp_state)
+        gp_params = posterior_fit(ys, xs, mask=mask, params=gp_params)
 
+        ys = self.sign * ys
+        best_score = self.sign * best_score
         opt_state = OptimizerState(params=_params, ys=ys, best_score=best_score,
-                                   best_params=best_params, mask=mask, gp_state=gp_state)
+                                   best_params=best_params, mask=mask, gp_params=gp_params)
 
         return opt_state
 
-    def sample(self, key, opt_state, size=1000, has_prior=False):
+    @partial(jax.jit, static_argnames=('self', 'size'))
+    def sample(self, key, state, size=10_000):
         """
         Samples new parameters using the acquisition function.
 
@@ -126,27 +178,33 @@ class Optimizer:
             Sampled parameters (dict), and optionally (xs_samples, means, stds).
         """
         # Sample 'size' elements of each distribution.
-        keys = jax.random.split(key, len(opt_state.params))
-        samples = {param: self.domain[param].sample(key, (size,))
-                   for key, param in zip(keys, opt_state.params)}
+        samples = self.param_space.sample_params(key, (size,))
+        xs_samples = self.param_space.to_array(samples)
 
+        # Prepare the data for the Gaussian process prediction.
+        xs = self.param_space.to_array(state.params)
+        ys = self.sign * state.ys
+        mask = state.mask
+        gp_params = state.gp_params
 
-        xs = jnp.stack([self.domain[key].transform(opt_state.params[key])
-                        for key in opt_state.params], axis=1)
-        ys = opt_state.ys
-        mask = opt_state.mask
-        gpparams = opt_state.gp_state.params
-        keys = jax.random.split(key, len(opt_state.params))
-        xs_samples = jnp.stack([self.domain[name].sample(key, (size,))
-                                for key, name in zip(keys,opt_state.params)], axis=1)
+        # Compute the acquisition function values for the sampled points.
+        acq_vals = self.acq(xs_samples, xs, ys, mask, gp_params)
 
-        # Use the acquisition function to find the best parameters
-        zs, (means, stds) = self.acq(xs_samples, xs, ys, mask, gpparams)
-        idx = jnp.argmax(zs)
-        best_params = jax.tree_util.tree_map(lambda d: d[idx], samples)
-        if has_prior:
-            return best_params, (xs_samples, means, stds)
+        # Of those, find the best 50 points and optimize them using BFGS.
+        top_idxs = jnp.argsort(acq_vals)[-50:]
+        init_points = xs_samples[top_idxs]
+        f = lambda x: jnp.squeeze(self.acq(x[None, :], xs, ys, mask, gp_params))
+        optimized = jax.vmap(lambda x: _optimize_suggestion(x, f, max_iter=10))(init_points)
+        opt_vals = self.acq(optimized, xs, ys, mask, gp_params)
+
+        # Return the best point from the optimized points and the sampled points.
+        all_points = jnp.concatenate((optimized, xs_samples), axis=0)
+        all_vals = jnp.concatenate((opt_vals, acq_vals), axis=0)
+        chosen_suggestion = jnp.argmax(all_vals)
+
+        best_params = self.param_space.to_dict(all_points[chosen_suggestion][None])
         return best_params
+
 
     def expand(self, opt_state: OptimizerState):
         """
@@ -175,7 +233,7 @@ class Optimizer:
 
         opt_state = OptimizerState(params=params, ys=ys, best_score=opt_state.best_score,
                                    best_params=opt_state.best_params, mask=mask,
-                                   gp_state=opt_state.gp_state)
+                                   gp_params=opt_state.gp_params)
         return opt_state
 
 
@@ -205,14 +263,17 @@ class Optimizer:
 
         xs = jnp.stack([self.domain[key].transform(params[key])
                         for key in params], axis=1)
-        gp_state = posterior_fit(ys, xs, mask=mask, state=opt_state.gp_state)
+        ys = self.sign * ys
+        gp_params = posterior_fit(ys, xs, mask=mask, params=opt_state.gp_params)
 
-        best_score = self.best_fn(ys, where=mask, initial=self.initial)
-        best_params_idx = self.best_params_fn(jnp.where(mask, ys, self.initial))
+        best_score = jnp.max(ys, where=mask, initial=-jnp.inf)
+        best_params_idx = jnp.argmax(jnp.where(mask, ys, -jnp.inf))
         best_params = jax.tree_util.tree_map(lambda x: x[best_params_idx], params)
 
+        ys = self.sign * ys
+        best_score = self.sign * best_score
         opt_state = OptimizerState(params=params, ys=ys, best_score=best_score,
                                    best_params=best_params, mask=mask,
-                                   gp_state=gp_state)
+                                   gp_params=gp_params)
         return opt_state
 
