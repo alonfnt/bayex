@@ -129,3 +129,63 @@ class Integer(Domain):
         """
         samples = jax.random.randint(key, shape, minval=self.lower, maxval=self.upper + 1)
         return self.transform(samples)
+
+
+class ParamSpace:
+    """
+    Internal class that manages a collection of named parameter domains.
+
+    This utility encapsulates logic for sampling, transforming, and handling
+    structured parameter inputs defined by a mapping of variable names to Domain
+    instances (e.g., Real, Integer).
+
+    Example:
+        >>> space = ParamSpace({
+        ...     "x1": Real(0.0, 1.0),
+        ...     "x2": Integer(1, 5)
+        ... })
+        >>> key = jax.random.PRNGKey(0)
+        >>> samples = space.sample_tree(key, (128,))
+        >>> xs = space.transform_tree(samples)
+
+    Notes:
+        This class is intended for internal use by the optimizer and should not
+        be exposed as part of the public API.
+    """
+
+    def __init__(self, space: dict):
+        self.space = space
+
+    def sample_params(self, key: jax.Array, shape: Tuple) -> dict:
+        keys = jax.random.split(key, len(self.space))
+        return {name: self.space[name].sample(k, shape) for name, k in zip(self.space, keys)}
+
+    def to_array(self, tree: dict) -> jax.Array:
+        """
+        Transforms a batch of parameter values into a 2D array suitable for GP input.
+
+        Applies each domain's `.transform()` to its corresponding parameter values.
+
+        Args:
+            tree: A dictionary of parameter name → array of raw values.
+
+        Returns:
+            A JAX array of shape (batch_size, num_params) with transformed values.
+        """
+        return jax.numpy.stack([self.space[k].transform(tree[k]) for k in self.space], axis=1)
+
+
+    def to_dict(self, xs: jax.Array) -> dict:
+        """
+        Converts a stacked parameter matrix back into named parameter trees.
+
+        Typically used after optimization in transformed space.
+
+        Args:
+            xs: A 2D JAX array of shape (batch_size, num_params), with each column
+                corresponding to a parameter.
+
+        Returns:
+            A dictionary mapping parameter names to individual 1D arrays.
+        """
+        return {k: self.space[k].transform(xs[:, i]) for i, k in enumerate(self.space)}
