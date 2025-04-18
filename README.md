@@ -1,8 +1,7 @@
 <p align="center">
-    <img src="https://github.com/alonfnt/bayex/assets/38870744/ffb920ed-f347-4185-9abe-24ec2d0a22f1" height="256">
+    <img src="https://github.com/user-attachments/assets/a761373e-2b34-46a5-9176-201f9d5c5c54" height="256">
 </p>
 
-# bayex: Minimal Bayesian Optimization in JAX
 [![tests](https://github.com/alonfnt/bayex/actions/workflows/tests.yml/badge.svg)](https://github.com/alonfnt/bayex/actions/workflows/tests.yml)
 [![PyPI](https://img.shields.io/pypi/v/bayex.svg)](https://pypi.org/project/bayex/)
 [![Docs](https://readthedocs.org/projects/bayex/badge/?version=latest)](https://bayex.readthedocs.io/en/latest/)
