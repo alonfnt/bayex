@@ -54,8 +54,10 @@ def _optimize_suggestion(params: dict, fun: Callable, max_iter: int = 10):
         jax.Array: The optimized point after `max_iter` iterations.
     """
 
+    # L-BFGS optimizer is used for minimization, so to maximize acquisition
+    # we need to negate the function value.
     opt = optax.lbfgs()
-    value_and_grad_fun = optax.value_and_grad_from_state(fun)
+    value_and_grad_fun = optax.value_and_grad_from_state(lambda x: -fun(x))
 
     def step(carry, _):
         params, state = carry
