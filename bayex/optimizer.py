@@ -55,17 +55,20 @@ def _optimize_suggestion(params: dict, fun: Callable, max_iter: int = 10):
     """
 
     # L-BFGS optimizer is used for minimization, so to maximize acquisition
-    # we need to negate the function value.
+    # we need to negate the function value. The line search has to be given the
+    # same negated objective, otherwise it disagrees with the gradients.
     opt = optax.lbfgs()
-    value_and_grad_fun = optax.value_and_grad_from_state(lambda x: -fun(x))
+    neg_fun = lambda x: -fun(x)
+    value_and_grad_fun = optax.value_and_grad_from_state(neg_fun)
 
     def step(carry, _):
         params, state = carry
         value, grad = value_and_grad_fun(params, state=state)
         updates, state = opt.update(grad, state, params,
-                                    value=value, grad=grad, value_fn=fun)
+                                    value=value, grad=grad, value_fn=neg_fun)
         params = optax.apply_updates(params, updates)
-        params = jnp.clip(params, -1e6, 1e6)
+        # The search happens in the transformed space, which is the unit cube.
+        params = jnp.clip(params, 0.0, 1.0)
         return (params, state), None
 
     init_carry = (params, opt.init(params))
@@ -102,7 +105,11 @@ class Optimizer:
         elif acq == 'UCB':
             self.acq = jax.jit(boacq.upper_confidence_bounds)
         elif acq == 'LCB':
-            self.acq = jax.jit(boacq.lower_confidence_bounds)
+            # The acquisition is always maximized internally, so maximizing LCB
+            # steers the search away from the promising regions. Minimization is
+            # already handled by maximize=False, which flips the observations.
+            raise ValueError("Acquisition function LCB cannot be maximized, "
+                             "use UCB together with maximize=False instead")
         else:
             raise ValueError(f"Acquisition function {acq} is not implemented")
 
@@ -197,11 +204,16 @@ class Optimizer:
         init_points = xs_samples[top_idxs]
         f = lambda x: jnp.squeeze(self.acq(x[None, :], xs, ys, mask, gp_params))
         optimized = jax.vmap(lambda x: _optimize_suggestion(x, f, max_iter=10))(init_points)
+
+        # The line search can diverge where the acquisition is flat, so keep the
+        # sampled point whenever the refinement did not land on a valid one.
+        optimized = jnp.where(jnp.isfinite(optimized), optimized, init_points)
         opt_vals = self.acq(optimized, xs, ys, mask, gp_params)
 
         # Return the best point from the optimized points and the sampled points.
         all_points = jnp.concatenate((optimized, xs_samples), axis=0)
         all_vals = jnp.concatenate((opt_vals, acq_vals), axis=0)
+        all_vals = jnp.where(jnp.isfinite(all_vals), all_vals, -jnp.inf)
         chosen_suggestion = jnp.argmax(all_vals)
 
         best_params = self.param_space.to_dict(all_points[chosen_suggestion][None])
