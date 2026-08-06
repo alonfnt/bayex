@@ -15,6 +15,9 @@ class Domain:
     def transform(self, x: jax.Array):
         raise NotImplementedError
 
+    def inverse_transform(self, z: jax.Array):
+        raise NotImplementedError
+
     def sample(self, key: jax.Array, shape: Tuple):
         raise NotImplementedError
 
@@ -50,15 +53,32 @@ class Real(Domain):
 
     def transform(self, x: jax.Array):
         """
-        Clips values to the domain range [lower, upper].
+        Clips values to [lower, upper] and maps them to the unit interval.
+
+        The Gaussian Process works on the transformed values, so that a single
+        lengthscale prior is meaningful regardless of how wide the domain is.
 
         Args:
-            x: Input values.
+            x: Input values in the domain range.
 
         Returns:
-            Clipped values within bounds.
+            Values in [0, 1].
         """
-        return jax.numpy.clip(x, self.lower, self.upper)
+        x = jax.numpy.clip(x, self.lower, self.upper)
+        return (x - self.lower) / (self.upper - self.lower)
+
+    def inverse_transform(self, z: jax.Array):
+        """
+        Maps values from the unit interval back to the domain range.
+
+        Args:
+            z: Input values in [0, 1].
+
+        Returns:
+            Values in [lower, upper].
+        """
+        z = jax.numpy.clip(z, 0.0, 1.0)
+        return self.lower + z * (self.upper - self.lower)
 
     def sample(self, key: jax.Array, shape: Tuple):
         """
@@ -69,10 +89,9 @@ class Real(Domain):
             shape: Desired output shape.
 
         Returns:
-            Sampled values clipped to the domain.
+            Sampled values in the domain range.
         """
-        samples = jax.random.uniform(key, shape, minval=self.lower, maxval=self.upper)
-        return self.transform(samples)
+        return jax.random.uniform(key, shape, minval=self.lower, maxval=self.upper)
 
 
 class Integer(Domain):
@@ -106,14 +125,33 @@ class Integer(Domain):
 
     def transform(self, x: jax.Array):
         """
-        Rounds and clips values to the integer domain.
+        Rounds and clips values to the integer domain, then maps them to the
+        unit interval.
+
+        The Gaussian Process works on the transformed values, so that a single
+        lengthscale prior is meaningful regardless of how wide the domain is.
 
         Args:
-            x: Input values.
+            x: Input values in the domain range.
+
+        Returns:
+            Values in [0, 1].
+        """
+        x = jax.numpy.clip(jax.numpy.round(x), self.lower, self.upper)
+        return (x - self.lower) / (self.upper - self.lower)
+
+    def inverse_transform(self, z: jax.Array):
+        """
+        Maps values from the unit interval back to the integer domain.
+
+        Args:
+            z: Input values in [0, 1].
 
         Returns:
             Rounded and clipped values as float32.
         """
+        z = jax.numpy.clip(z, 0.0, 1.0)
+        x = self.lower + z * (self.upper - self.lower)
         return jax.numpy.clip(jax.numpy.round(x), self.lower, self.upper).astype(jax.numpy.float32)
 
     def sample(self, key: jax.Array, shape: Tuple):
@@ -125,10 +163,10 @@ class Integer(Domain):
             shape: Desired output shape.
 
         Returns:
-            Sampled values clipped to valid integer range.
+            Sampled values in the valid integer range.
         """
         samples = jax.random.randint(key, shape, minval=self.lower, maxval=self.upper + 1)
-        return self.transform(samples)
+        return samples.astype(jax.numpy.float32)
 
 
 class ParamSpace:
@@ -179,13 +217,14 @@ class ParamSpace:
         """
         Converts a stacked parameter matrix back into named parameter trees.
 
-        Typically used after optimization in transformed space.
+        Typically used after optimization in transformed space, so each column
+        is mapped from the unit interval back to its own domain range.
 
         Args:
             xs: A 2D JAX array of shape (batch_size, num_params), with each column
-                corresponding to a parameter.
+                corresponding to a parameter in [0, 1].
 
         Returns:
             A dictionary mapping parameter names to individual 1D arrays.
         """
-        return {k: self.space[k].transform(xs[:, i]) for i, k in enumerate(self.space)}
+        return {k: self.space[k].inverse_transform(xs[:, i]) for i, k in enumerate(self.space)}
