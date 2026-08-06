@@ -72,6 +72,31 @@ def test_masking_in_gaussian_process(padding: int):
     assert jnp.allclose(reference, output), f"Mismatch for padding={padding}"
 
 
+def test_posterior_fit_improves_predictions():
+    # Checked on the predictions rather than on the marginal likelihood itself,
+    # so that the test stays meaningful whichever sign convention is used.
+    key = jax.random.key(0)
+    x = jax.random.uniform(key, (16, 1), minval=-2, maxval=2)
+    y = jnp.squeeze(jnp.sin(3 * x))
+    mask = jnp.ones(len(x), dtype=bool)
+
+    xt = jnp.linspace(-2, 2, 50).reshape(-1, 1)
+    yt = jnp.squeeze(jnp.sin(3 * xt))
+
+    params = gp.GPParams(
+        noise=jnp.full((1, 1), -8.0),
+        amplitude=jnp.zeros((1, 1)),
+        lengthscale=jnp.zeros((1, 1)),
+    )
+    fitted = gp.posterior_fit(y, x, mask=mask, params=params)
+
+    def error(p):
+        mean, _ = gp.predict(p, x, y, mask, xt=xt)
+        return jnp.mean((mean - yt) ** 2)
+
+    assert error(fitted) < error(params), "Fitting should improve the predictions"
+
+
 @pytest.mark.parametrize("padding", [0, 1, 5, 10])
 def test_masking_in_prediction(padding: int):
 

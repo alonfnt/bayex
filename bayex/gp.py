@@ -49,10 +49,15 @@ def gaussian_process(
     K_inv_y = solve_triangular(L.T, solve_triangular(L, y, lower=True), lower=False)
 
     if compute_ml:
-        logp = 0.5 * jnp.dot(y.T, K_inv_y)
-        logp += jnp.sum(jnp.log(jnp.diag(L)))
-        logp -= jnp.sum(1.0 - mask) * 0.5 * jnp.log(MASK_VARIANCE)
-        logp += (jnp.sum(mask) / 2) * jnp.log(2 * jnp.pi)
+        # Log marginal likelihood of the observations, so that a better fit
+        # gives a larger value. The masked entries are given MASK_VARIANCE on
+        # the diagonal, and their contribution to log|K| is removed again here.
+        logp = -0.5 * jnp.dot(y.T, K_inv_y)
+        logp -= jnp.sum(jnp.log(jnp.diag(L)))
+        logp += jnp.sum(1.0 - mask) * 0.5 * jnp.log(MASK_VARIANCE)
+        logp -= (jnp.sum(mask) / 2) * jnp.log(2 * jnp.pi)
+
+        # Log-normal prior on the amplitude, to keep it away from zero.
         logp += jnp.sum(-0.5 * jnp.log(2*jnp.pi) - jnp.log(amp) - jnp.log(amp)**2)
         return jnp.sum(logp)
 
