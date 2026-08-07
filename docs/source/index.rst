@@ -46,7 +46,7 @@ Using Bayex is quite simple despite its low-level approach:
         return -(1.4 - 3 * x) * np.sin(18 * x)
 
     domain = {'x': bayex.domain.Real(0.0, 2.0)}
-    optimizer = bayex.Optimizer(domain=domain, maximize=True, acq='PI')
+    optimizer = bayex.Optimizer(domain=domain, maximize=True, acq='EI')
 
     # Define some prior evaluations to initialise the GP.
     params = {'x': [0.0, 0.5, 1.0]}
@@ -55,13 +55,13 @@ Using Bayex is quite simple despite its low-level approach:
 
     # Sample new points using Jax PRNG approach.
     ori_key = jax.random.key(42)
-    for step in range(20):
+    for step in range(50):
         key = jax.random.fold_in(ori_key, step)
         new_params = optimizer.sample(key, opt_state)
         y_new = f(**new_params)
         opt_state = optimizer.fit(opt_state, y_new, new_params)
 
-With the results being saved at ``opt_state``.
+With the results being saved at ``opt_state.best_params`` and ``opt_state.best_score``.
 
 Contributing
 ------------
