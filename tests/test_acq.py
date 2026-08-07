@@ -33,6 +33,24 @@ def test_acquisition_invariance_to_padding(gp_inputs, padding):
     assert jnp.allclose(ei_ref, ei_pad, atol=1e-5)
 
 
+def test_probability_improvement_ignores_padded_observations():
+    # Every observation is negative here, so taking the maximum without the
+    # mask picks up one of the zeros used as padding, and the acquisition ends
+    # up chasing an incumbent that was never observed.
+    x = jnp.linspace(-3, 3, 5)
+    y = jnp.sin(x) - 2.0
+    mask = jnp.ones_like(x)
+    xt = jnp.linspace(-4, 4, 5)
+    params = GPParams(noise=0.1, amplitude=1.0, lengthscale=1.0)
+
+    pi_ref = probability_improvement(xt, x, y, mask, params)
+
+    x_pad, y_pad, mask_pad = jax.tree.map(lambda t: jnp.pad(t, (0, 5)), (x, y, mask))
+    pi_pad = probability_improvement(xt, x_pad, y_pad, mask_pad, params)
+
+    assert jnp.allclose(pi_ref, pi_pad, atol=1e-5)
+
+
 @pytest.mark.parametrize("acq_fn", [
     expected_improvement,
     probability_improvement,

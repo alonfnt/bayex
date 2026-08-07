@@ -81,9 +81,9 @@ def probability_improvement(
     Returns:
         PI scores at `x_pred`.
     """
-    y_max = ys.max()
+    ymax = jnp.max(ys, where=mask.astype(bool), initial=-jnp.inf)
     mu, std = predict(gp_params, xs, ys, mask, xt=x_pred)
-    z = (mu - y_max - xi) / std
+    z = (mu - ymax - xi) / (std + 1e-3)
     return norm.cdf(z)
 
 
@@ -93,7 +93,7 @@ def upper_confidence_bounds(
     ys: jax.Array,
     mask: jax.Array,
     gp_params: GPParams,
-    kappa: float = 0.01,
+    kappa: float = 2.576,
     ):
     r"""
     Upper Confidence Bound (UCB) acquisition function.
@@ -132,8 +132,11 @@ def lower_confidence_bounds(
     r"""
     Lower Confidence Bound (LCB) acquisition function.
 
-    Useful for minimization tasks. Encourages sampling in uncertain regions
-    with low predicted values.
+    Meant to be *minimized*, so it is not a drop-in choice for
+    :class:`~bayex.optimizer.Optimizer`, which always maximizes the acquisition
+    it is given. Minimization of the objective is handled by ``maximize=False``,
+    which flips the sign of the observations, so ``UCB`` is the confidence bound
+    to use in both cases. Provided for users composing their own loop.
 
     The formula is:
 

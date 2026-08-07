@@ -4,12 +4,22 @@ import jax.numpy as jnp
 from bayex.domain import Real, Integer
 
 
-@pytest.mark.parametrize("lower, upper", [(0.0, 1.0), (-5.5, 5.5)])
-def test_real_transform_clips_within_bounds(lower, upper):
+@pytest.mark.parametrize("lower, upper", [(0.0, 1.0), (-5.5, 5.5), (0.0, 1000.0)])
+def test_real_transform_maps_to_unit_interval(lower, upper):
     domain = Real(lower, upper)
-    x = jnp.array([lower - 1, (lower + upper) / 2, upper + 1])
+    x = jnp.array([lower - 1, lower, (lower + upper) / 2, upper, upper + 1])
     out = domain.transform(x)
-    assert jnp.all(out >= lower) and jnp.all(out <= upper)
+    assert jnp.all(out >= 0.0) and jnp.all(out <= 1.0)
+    # Out of bounds values are clipped onto the edges of the unit interval.
+    assert jnp.allclose(out, jnp.array([0.0, 0.0, 0.5, 1.0, 1.0]))
+
+
+@pytest.mark.parametrize("lower, upper", [(0.0, 1.0), (-5.5, 5.5), (0.0, 1000.0)])
+def test_real_inverse_transform_roundtrip(lower, upper):
+    domain = Real(lower, upper)
+    x = jnp.linspace(lower, upper, 11)
+    out = domain.inverse_transform(domain.transform(x))
+    assert jnp.allclose(out, x, rtol=1e-5, atol=1e-5 * (upper - lower))
 
 
 def test_real_sample_within_bounds():
@@ -28,8 +38,16 @@ def test_integer_transform_and_type(lower, upper):
     x = jnp.array([lower - 2.3, (lower + upper) / 2.0, upper + 2.7])
     out = domain.transform(x)
     assert jnp.issubdtype(out.dtype, jnp.floating)
-    assert jnp.all(out >= lower) and jnp.all(out <= upper)
+    assert jnp.all(out >= 0.0) and jnp.all(out <= 1.0)
+
+
+@pytest.mark.parametrize("lower, upper", [(0, 5), (-3, 3)])
+def test_integer_inverse_transform_roundtrip(lower, upper):
+    domain = Integer(lower, upper)
+    x = jnp.arange(lower, upper + 1, dtype=jnp.float32)
+    out = domain.inverse_transform(domain.transform(x))
     assert jnp.all(out == jnp.round(out))
+    assert jnp.allclose(out, x)
 
 
 def test_integer_sample_within_bounds():
