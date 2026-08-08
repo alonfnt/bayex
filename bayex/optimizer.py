@@ -103,10 +103,28 @@ class Optimizer:
         Args:
             domain: A dict mapping parameter names to domain objects (e.g., Real, Integer).
             acq: Acquisition function. Either the name of one of the built-in
-                ones ('EI', 'PI', 'UCB'), or any callable with the signature
-                ``(x_pred, xs, ys, mask, gp_params) -> jax.Array``, returning
-                one score per row of `x_pred`. It is maximized, and is jitted
-                here, so it has to be traceable.
+                ones ('EI', 'PI', 'UCB'), or a callable. A callable is given
+                ``(x_pred, xs, ys, mask, gp_params)`` and returns one score per
+                row of `x_pred`, and sees the values the Gaussian process works
+                with rather than the ones the caller passes in:
+
+                - `x_pred` and `xs` are in the unit cube, each domain having
+                  been mapped onto [0, 1] by its own `transform`, so a custom
+                  acquisition must not compare them against the bounds of the
+                  original domain.
+                - `ys` has been multiplied by the sign implied by `maximize`,
+                  so it is always a maximization problem from here on. Under
+                  the default `maximize=False` the observations arrive
+                  negated.
+                - Entries where `mask` is False are padding and hold no
+                  observation.
+
+                The result is maximized. It is jitted, and is also
+                differentiated with respect to `x_pred` when the best
+                candidates are refined, so it has to be traceable and to have
+                a useful gradient. One that does not, by rounding `x_pred` for
+                instance, will still run, but the refinement will have no
+                effect and sampling degrades to a random search.
             maximize: Whether to maximize or minimize the objective.
 
         Raises:
