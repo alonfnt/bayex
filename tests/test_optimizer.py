@@ -123,3 +123,93 @@ def test_evaluate_raise_on_lcb():
     # LCB is meant to be minimized, so the optimizer cannot make use of it.
     with pytest.raises(ValueError, match="LCB cannot be maximized"):
         bayex.Optimizer(domain=domain, acq='LCB')
+
+
+def test_acquisition_accepts_a_callable():
+    """A custom acquisition is used as given, without having to be registered."""
+
+    def constant_at_the_left_edge(x_pred, xs, ys, mask, gp_params):
+        # Ignores the posterior and scores points by how close they are to 0,
+        # so the suggestion is predictable without reasoning about the GP.
+        return -jnp.squeeze(x_pred, axis=-1)
+
+    domain = {'x': bayex.domain.Real(0.0, 1.0)}
+    opt = bayex.Optimizer(domain=domain, acq=constant_at_the_left_edge)
+
+    params = {'x': [0.2, 0.5, 0.9]}
+    ys = [1.0, 2.0, 3.0]
+    opt_state = opt.init(ys, params)
+
+    suggestion = opt.sample(KEY, opt_state, size=256)
+    assert suggestion['x'] < 1e-3
+
+
+def test_acquisition_callable_can_pin_arguments():
+    """functools.partial is enough to change an acquisition's parameters."""
+    from functools import partial
+
+    domain = {'x': bayex.domain.Real(0.0, 1.0)}
+    explorative = partial(bayex.acq.expected_improvement, xi=0.5)
+    opt = bayex.Optimizer(domain=domain, acq=explorative, maximize=True)
+
+    params = {'x': [0.1, 0.4, 0.8]}
+    ys = [0.1, 0.4, 0.2]
+    opt_state = opt.init(ys, params)
+
+    suggestion = opt.sample(KEY, opt_state, size=256)
+    assert 0.0 <= float(suggestion['x'][0]) <= 1.0
+
+
+def test_lcb_as_a_callable_is_allowed():
+    """Passing it explicitly means the caller has taken on the sign."""
+    domain = {'x': bayex.domain.Real(0.0, 1.0)}
+    opt = bayex.Optimizer(domain=domain, acq=bayex.acq.lower_confidence_bounds)
+    assert opt is not None
+
+
+def test_acquisition_callable_receives_transformed_inputs():
+    """
+    Pins what a custom acquisition is handed.
+
+    The values reaching an acquisition are the ones the GP works with, not the
+    ones the caller passed in, and both differences are silent if got wrong: a
+    custom acquisition comparing against the original bounds, or reading the
+    observations at their original sign, gives no error and simply searches the
+    wrong place.
+    """
+    seen = {}
+
+    def capture(x_pred, xs, ys, mask, gp_params):
+        seen['x_pred'] = x_pred
+        seen['xs'] = xs
+        seen['ys'] = ys
+        seen['mask'] = mask
+        return -jnp.squeeze(x_pred, axis=-1)
+
+    # A domain that is neither the unit interval nor centred on it, so that a
+    # transformed value cannot be mistaken for an untransformed one.
+    domain = {'x': bayex.domain.Real(-2.0, 2.0)}
+    opt = bayex.Optimizer(domain=domain, acq=capture, maximize=False)
+
+    params = {'x': [-2.0, 0.0, 2.0]}
+    ys = [10.0, 20.0, 30.0]
+    opt_state = opt.init(ys, params)
+
+    # sample is jitted, so the captured values would otherwise be tracers.
+    with jax.disable_jit():
+        opt.sample(KEY, opt_state, size=64)
+
+    # The observed inputs arrive mapped onto [0, 1] by Real.transform.
+    observed_xs = seen['xs'][:3, 0]
+    np.testing.assert_allclose(observed_xs, [0.0, 0.5, 1.0], atol=1e-6)
+
+    # As do the candidates.
+    assert float(jnp.min(seen['x_pred'])) >= 0.0
+    assert float(jnp.max(seen['x_pred'])) <= 1.0
+
+    # And minimization is expressed by negating the observations, so that the
+    # acquisition is always maximizing.
+    np.testing.assert_allclose(seen['ys'][:3], [-10.0, -20.0, -30.0], atol=1e-6)
+
+    # Padding is marked, not silently zero-valued.
+    assert bool(seen['mask'][0]) and not bool(seen['mask'][3])
