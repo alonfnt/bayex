@@ -11,6 +11,16 @@ from bayex.gp import GPParams, posterior_fit
 from bayex.domain import ParamSpace
 
 
+# The acquisitions that can be selected by name. LCB is deliberately absent:
+# it is meant to be minimized, and Optimizer maximizes whatever it is given.
+# Passing it as a callable is still possible for a caller who wants that.
+ACQUISITIONS = {
+    'EI': boacq.expected_improvement,
+    'PI': boacq.probability_improvement,
+    'UCB': boacq.upper_confidence_bounds,
+}
+
+
 class OptimizerState(NamedTuple):
     """
     Container for the state of the Bayesian optimizer.
@@ -85,33 +95,44 @@ class Optimizer:
     acquisition functions such as EI, PI, UCB, or LCB.
     """
 
-    def __init__(self, domain: dict, acq: str = 'EI', maximize: bool = False):
+    def __init__(self, domain: dict, acq: Union[str, Callable] = 'EI',
+                 maximize: bool = False):
         """
         Initializes the optimizer.
 
         Args:
             domain: A dict mapping parameter names to domain objects (e.g., Real, Integer).
-            acq: Acquisition function ('EI', 'PI', 'UCB', 'LCB').
+            acq: Acquisition function. Either the name of one of the built-in
+                ones ('EI', 'PI', 'UCB'), or any callable with the signature
+                ``(x_pred, xs, ys, mask, gp_params) -> jax.Array``, returning
+                one score per row of `x_pred`. It is maximized, and is jitted
+                here, so it has to be traceable.
             maximize: Whether to maximize or minimize the objective.
+
+        Raises:
+            ValueError: If `acq` names an acquisition that does not exist, or
+                names 'LCB', which is meant to be minimized.
         """
         self.domain = domain
         self.sign = 1 if maximize else -1
         self.param_space = ParamSpace(domain)
 
-        if acq == 'EI':
-            self.acq = jax.jit(boacq.expected_improvement)
-        elif acq == 'PI':
-            self.acq = jax.jit(boacq.probability_improvement)
-        elif acq == 'UCB':
-            self.acq = jax.jit(boacq.upper_confidence_bounds)
+        if callable(acq):
+            # Custom acquisitions own their own sign convention, so nothing is
+            # rejected here. functools.partial is the way to pin an argument,
+            # as in partial(expected_improvement, xi=0.5).
+            self.acq = jax.jit(acq)
         elif acq == 'LCB':
             # The acquisition is always maximized internally, so maximizing LCB
             # steers the search away from the promising regions. Minimization is
             # already handled by maximize=False, which flips the observations.
             raise ValueError("Acquisition function LCB cannot be maximized, "
                              "use UCB together with maximize=False instead")
+        elif acq in ACQUISITIONS:
+            self.acq = jax.jit(ACQUISITIONS[acq])
         else:
-            raise ValueError(f"Acquisition function {acq} is not implemented")
+            raise ValueError(f"Acquisition function {acq} is not implemented, "
+                             f"expected one of {sorted(ACQUISITIONS)} or a callable")
 
     def init(self, ys: jax.Array, params: dict, noise_scale: float = -8.0):
         """

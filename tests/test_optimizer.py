@@ -123,3 +123,45 @@ def test_evaluate_raise_on_lcb():
     # LCB is meant to be minimized, so the optimizer cannot make use of it.
     with pytest.raises(ValueError, match="LCB cannot be maximized"):
         bayex.Optimizer(domain=domain, acq='LCB')
+
+
+def test_acquisition_accepts_a_callable():
+    """A custom acquisition is used as given, without having to be registered."""
+
+    def constant_at_the_left_edge(x_pred, xs, ys, mask, gp_params):
+        # Ignores the posterior and scores points by how close they are to 0,
+        # so the suggestion is predictable without reasoning about the GP.
+        return -jnp.squeeze(x_pred, axis=-1)
+
+    domain = {'x': bayex.domain.Real(0.0, 1.0)}
+    opt = bayex.Optimizer(domain=domain, acq=constant_at_the_left_edge)
+
+    params = {'x': [0.2, 0.5, 0.9]}
+    ys = [1.0, 2.0, 3.0]
+    opt_state = opt.init(ys, params)
+
+    suggestion = opt.sample(KEY, opt_state, size=256)
+    assert suggestion['x'] < 1e-3
+
+
+def test_acquisition_callable_can_pin_arguments():
+    """functools.partial is enough to change an acquisition's parameters."""
+    from functools import partial
+
+    domain = {'x': bayex.domain.Real(0.0, 1.0)}
+    explorative = partial(bayex.acq.expected_improvement, xi=0.5)
+    opt = bayex.Optimizer(domain=domain, acq=explorative, maximize=True)
+
+    params = {'x': [0.1, 0.4, 0.8]}
+    ys = [0.1, 0.4, 0.2]
+    opt_state = opt.init(ys, params)
+
+    suggestion = opt.sample(KEY, opt_state, size=256)
+    assert 0.0 <= float(suggestion['x'][0]) <= 1.0
+
+
+def test_lcb_as_a_callable_is_allowed():
+    """Passing it explicitly means the caller has taken on the sign."""
+    domain = {'x': bayex.domain.Real(0.0, 1.0)}
+    opt = bayex.Optimizer(domain=domain, acq=bayex.acq.lower_confidence_bounds)
+    assert opt is not None
