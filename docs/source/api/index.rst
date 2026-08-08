@@ -6,6 +6,7 @@ API Reference
 
    bayex.acq
    bayex.domain
+   bayex.gp
    bayex.optimizer
 
 Module contents

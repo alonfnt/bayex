@@ -9,6 +9,7 @@
 
    Real
    Integer
+   ParamSpace
 
 .. automodule:: bayex.domain
    :members:

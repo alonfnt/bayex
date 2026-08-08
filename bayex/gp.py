@@ -10,7 +10,6 @@ import optax
 MASK_VARIANCE = 1e12 # High variance for masked points to not affect the process.
 
 GPParams = namedtuple("GPParams", ["noise", "amplitude", "lengthscale"])
-GPState = namedtuple("GPState", ["params", "momentums", "scales"])
 
 def exp_quadratic(x1, x2, mask):
     distance = jnp.sum((x1 - x2) ** 2)
@@ -77,7 +76,6 @@ def gaussian_process(
 
 
 marginal_likelihood = partial(gaussian_process, compute_ml=True)
-grad_fun = jax.jit(jax.grad(marginal_likelihood))
 predict = jax.jit(partial(gaussian_process, compute_ml=False))
 
 def neg_log_likelihood(params, x, y, mask):
@@ -99,7 +97,7 @@ def posterior_fit(
     params: GPParams,
     lr: float = 1e-3,
     trainsteps: int = 100,
-) -> GPState:
+) -> GPParams:
 
     optimizer = optax.chain(optax.clip_by_global_norm(10.0), optax.adamw(lr))
     opt_state = optimizer.init(params)
