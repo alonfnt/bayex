@@ -171,24 +171,22 @@ class Integer(Domain):
 
 class ParamSpace:
     """
-    Internal class that manages a collection of named parameter domains.
+    A collection of named parameter domains.
 
-    This utility encapsulates logic for sampling, transforming, and handling
-    structured parameter inputs defined by a mapping of variable names to Domain
-    instances (e.g., Real, Integer).
+    Handles sampling, and moving between the named parameters a user works with
+    and the plain array in the unit cube that the Gaussian process consumes.
+    `Optimizer` is built on it, and it is public so that a loop written by hand
+    can reuse the same conversions instead of reimplementing them.
 
     Example:
         >>> space = ParamSpace({
         ...     "x1": Real(0.0, 1.0),
         ...     "x2": Integer(1, 5)
         ... })
-        >>> key = jax.random.PRNGKey(0)
-        >>> samples = space.sample_tree(key, (128,))
-        >>> xs = space.transform_tree(samples)
-
-    Notes:
-        This class is intended for internal use by the optimizer and should not
-        be exposed as part of the public API.
+        >>> key = jax.random.key(0)
+        >>> samples = space.sample_params(key, (128,))
+        >>> xs = space.to_array(samples)
+        >>> params = space.to_dict(xs)
     """
 
     def __init__(self, space: dict):

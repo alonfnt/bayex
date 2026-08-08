@@ -8,12 +8,10 @@
    :nosignatures:
 
    GPParams
-   GPState
    marginal_likelihood
    predict
    posterior_fit
    gaussian_process
-   grad_fun
 
 .. automodule:: bayex.gp
    :members:
