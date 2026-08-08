@@ -28,6 +28,10 @@ jobs:
         python -m pip install -e . pytest
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
+    # The benchmarks are excluded here and run in benchmarks.yml instead. They
+    # spend most of their time compiling rather than computing, because the
+    # buffers are resized as observations accumulate, and a hosted runner is
+    # slow enough at that to turn two minutes into well over half an hour.
     - name: Test with pytest
       run: |
-        pytest
+        pytest -m "not slow"

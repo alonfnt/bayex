@@ -1,0 +1,45 @@
+# Runs the regret benchmarks, which check that the optimizer still finds
+# optima rather than that each piece matches its specification.
+#
+# They are kept out of tests.yml because they are slow on a hosted runner: the
+# work is dominated by recompilation as the observation buffers grow, so a
+# suite that takes two minutes locally takes well over half an hour here. That
+# cost is gh-64; once the loop runs at a fixed capacity these can move back
+# into the main matrix.
+#
+# Until then they guard main after a merge, and can be dispatched by hand on a
+# branch that touches the GP or the acquisition functions.
+
+name: benchmarks
+
+on:
+  push:
+    branches: [ main ]
+
+  schedule:
+    # Weekly, so that a regression is found even if nothing was merged.
+    - cron: "0 6 * * 1"
+
+  workflow_dispatch:
+
+jobs:
+  benchmarks:
+    name: "Regret benchmarks"
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-python@v4
+      with:
+        python-version: "3.12"
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install -e . pytest
+
+    - name: Run benchmarks
+      run: |
+        pytest -m slow -v --durations=0
